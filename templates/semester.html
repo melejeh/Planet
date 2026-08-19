@@ -97,17 +97,8 @@
                 >
 
                 <div class="topbar-actions">
-                    <button type="button" class="secondary-button">
-                        Import schedule
-                    </button>
 
-                    <button
-                        type="button"
-                        class="dark-button"
-                        onclick="toggleSemesterForm()"
-                    >
-                        ＋ Add
-                    </button>
+            
                 </div>
             </header>
 
@@ -412,12 +403,24 @@
                         <div class="course-card-details">
                             <div>
                                 <span>CURRENT GRADE</span>
-                                <strong>—</strong>
+                                <strong>
+                                    {% if course["current_grade"] is not none %}
+                                        {{ course["current_grade"] }}%
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </strong>
                             </div>
 
                             <div>
                                 <span>NEXT DUE</span>
-                                <strong>—</strong>
+                                <strong>
+                                    {% if course["next_due"] %}
+                                        {{ course["next_due"] | pretty_date }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </strong>
                             </div>
                         </div>
                     </a>

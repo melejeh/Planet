@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <title>Edit {{ course["name"] }} | Planet</title>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="logo-icon">P</span>
+                <span>Planet</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard">
+                    <span>⌂</span>
+                    Dashboard
+                </a>
+
+                <a class="active" href="/semester">
+                    <span>▤</span>
+                    Courses &amp; Grades
+                </a>
+
+                <a href="#">
+                    <span>✦</span>
+                    Study Plan
+                </a>
+
+                <a href="#">
+                    <span>□</span>
+                    Calendar
+                </a>
+
+                <a href="#">
+                    <span>✓</span>
+                    To-Do
+                </a>
+
+                <a href="#">
+                    <span>◎</span>
+                    Goals
+                </a>
+
+                <a href="#">
+                    <span>♡</span>
+                    Gratitude
+                </a>
+
+                <a href="#">
+                    <span>◉</span>
+                    Focus
+                </a>
+
+                <a href="#">
+                    <span>⚙</span>
+                    Settings
+                </a>
+            </nav>
+
+            <div class="sidebar-profile">
+                <div class="profile-circle">
+                    {{ name[0] }}
+                </div>
+
+                <div class="profile-details">
+                    <span class="profile-name">{{ name }}</span>
+                    <a class="sign-out-link" href="/logout">
+                        Sign out
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <input
+                    type="search"
+                    placeholder="Search courses, tasks, exams..."
+                >
+            </header>
+
+            <section class="course-workspace">
+                <a
+                    class="course-back-link"
+                    href="{{ url_for(
+                        'course_details',
+                        course_id=course['id']
+                    ) }}"
+                >
+                    ← Back to course
+                </a>
+
+                <div class="edit-course-heading">
+                    <p class="eyebrow">COURSE SETTINGS</p>
+                    <h1>Edit course</h1>
+
+                    <p>
+                        Update the course name, code, schedule or colour.
+                    </p>
+                </div>
+
+                <form
+                    class="edit-course-form"
+                    method="POST"
+                    action="{{ url_for(
+                        'edit_course',
+                        course_id=course['id']
+                    ) }}"
+                >
+                    <label>
+                        Course name
+
+                        <input
+                            type="text"
+                            name="course_name"
+                            value="{{ course['name'] }}"
+                            required
+                        >
+                    </label>
+
+                    <label>
+                        Course code
+
+                        <input
+                            type="text"
+                            name="course_code"
+                            value="{{ course['code'] }}"
+                            required
+                        >
+                    </label>
+
+                    <label>
+                        Schedule
+
+                        <input
+                            type="text"
+                            name="schedule"
+                            value="{{ course['schedule'] or '' }}"
+                            placeholder="e.g. Tuesday 1:00–2:15 PM"
+                        >
+                    </label>
+
+                    <label>
+                        Course colour
+
+                        <select name="colour">
+                            <option
+                                value="berry"
+                                {% if course["colour"] == "berry" %}
+                                    selected
+                                {% endif %}
+                            >
+                                Berry
+                            </option>
+
+                            <option
+                                value="sage"
+                                {% if course["colour"] == "sage" %}
+                                    selected
+                                {% endif %}
+                            >
+                                Sage
+                            </option>
+
+                            <option
+                                value="gold"
+                                {% if course["colour"] == "gold" %}
+                                    selected
+                                {% endif %}
+                            >
+                                Gold
+                            </option>
+                        </select>
+                    </label>
+
+                    <div class="edit-course-actions">
+                        <a
+                            class="outline-button"
+                            href="{{ url_for(
+                                'course_details',
+                                course_id=course['id']
+                            ) }}"
+                        >
+                            Cancel
+                        </a>
+
+                        <button
+                            class="dark-button"
+                            type="submit"
+                        >
+                            Save changes
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

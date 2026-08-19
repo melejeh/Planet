@@ -213,14 +213,54 @@ def semester():
 
     if session.get("active_semester_id") is not None:
      courses = connection.execute(
-        """
-        SELECT * FROM courses
-        WHERE semester_id = ?
-        ORDER BY name
-        """,
-        (session["active_semester_id"],)
-    ).fetchall()
+    """
+    SELECT
+        courses.*,
 
+        ROUND(
+            CAST(
+                SUM(
+                    CASE
+                        WHEN assessments.score IS NOT NULL
+                        THEN assessments.score * assessments.weight
+                        ELSE 0
+                    END
+                )
+                AS REAL
+            )
+            /
+            NULLIF(
+                SUM(
+                    CASE
+                        WHEN assessments.score IS NOT NULL
+                        THEN assessments.weight
+                        ELSE 0
+                    END
+                ),
+                0
+            ),
+            1
+        ) AS current_grade,
+
+        MIN(
+            CASE
+                WHEN assessments.due_date >= DATE('now')
+                THEN assessments.due_date
+            END
+        ) AS next_due
+
+    FROM courses
+
+    LEFT JOIN assessments
+        ON assessments.course_id = courses.id
+
+    WHERE courses.semester_id = ?
+
+    GROUP BY courses.id
+    ORDER BY courses.name
+    """,
+    (session["active_semester_id"],)
+).fetchall()
     connection.close()
 
     return render_template(
@@ -690,6 +730,78 @@ def pretty_date(value):
     ).strftime("%B %d, %Y")
 
     return formatted_date.replace(" 0", " ")
+@app.route(
+    "/courses/<int:course_id>/edit",
+    methods=["GET", "POST"]
+)
+def edit_course(course_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+
+    course = connection.execute(
+        """
+        SELECT courses.*
+        FROM courses
+        JOIN semesters
+            ON courses.semester_id = semesters.id
+        WHERE courses.id = ?
+          AND semesters.user_id = ?
+        """,
+        (
+            course_id,
+            session["user_id"]
+        )
+    ).fetchone()
+
+    if course is None:
+        connection.close()
+        return redirect(url_for("semester"))
+
+    if request.method == "POST":
+        course_code = request.form["course_code"]
+        course_name = request.form["course_name"]
+        schedule = request.form["schedule"]
+        colour = request.form["colour"]
+
+        connection.execute(
+            """
+            UPDATE courses
+            SET code = ?,
+                name = ?,
+                schedule = ?,
+                colour = ?
+            WHERE id = ?
+            """,
+            (
+                course_code,
+                course_name,
+                schedule,
+                colour,
+                course_id
+            )
+        )
+
+        connection.commit()
+        connection.close()
+
+        return redirect(
+            url_for(
+                "course_details",
+                course_id=course_id
+            )
+        )
+
+    connection.close()
+
+    return render_template(
+        "edit_course.html",
+        course=course,
+        name=session["first_name"]
+    )
+
 
 
 if __name__ == "__main__":
