@@ -1729,3 +1729,205 @@ form button:hover {
     color: inherit;
     text-decoration: none;
 }
+/* Course-card hover lift on the Courses & Grades page */
+.course-card {
+    transition:
+        transform 0.22s ease,
+        box-shadow 0.22s ease,
+        border-color 0.22s ease;
+}
+
+.course-card:hover {
+    transform: translateY(-7px);
+    border-color: rgba(143, 60, 91, 0.32);
+    box-shadow: 0 18px 38px rgba(36, 36, 31, 0.12);
+}
+
+.course-card:focus-within {
+    transform: translateY(-7px);
+    border-color: var(--berry);
+    box-shadow: 0 18px 38px rgba(36, 36, 31, 0.12);
+}
+
+.course-card-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+/* Course details page */
+.course-workspace {
+    padding: 54px 64px 72px;
+}
+
+.course-back-link {
+    display: inline-flex;
+    margin-bottom: 28px;
+    color: var(--berry);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.course-back-link:hover {
+    text-decoration: underline;
+}
+
+.course-page-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    margin-bottom: 34px;
+}
+
+.course-page-heading h1 {
+    margin: 8px 0 10px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(42px, 5vw, 68px);
+    line-height: 0.98;
+    color: var(--ink);
+}
+
+.course-page-heading > div > p:last-child {
+    margin: 0;
+    color: var(--muted);
+    font-size: 17px;
+}
+
+.course-colour-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 14px;
+    border-radius: 999px;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.course-colour-chip.berry {
+    background: #f4e5eb;
+    color: var(--berry);
+}
+
+.course-colour-chip.sage {
+    background: #e9f0e7;
+    color: #526b55;
+}
+
+.course-colour-chip.gold {
+    background: #f7edd8;
+    color: #8a672a;
+}
+
+.course-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.course-summary-card,
+.course-content-card {
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--white);
+}
+
+.course-summary-card {
+    display: flex;
+    min-height: 155px;
+    padding: 24px;
+    flex-direction: column;
+}
+
+.course-summary-card span {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.course-summary-card strong {
+    margin: 18px 0 6px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 38px;
+    line-height: 1;
+    color: var(--ink);
+}
+
+.course-summary-card small {
+    margin-top: auto;
+    color: #526b55;
+    line-height: 1.4;
+}
+
+.course-content-card {
+    padding: 30px;
+}
+
+.course-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+}
+
+.course-section-heading h2,
+.course-empty-state h2 {
+    margin: 5px 0 0;
+    font-family: Georgia, "Times New Roman", serif;
+    color: var(--ink);
+}
+
+.course-section-heading h2 {
+    font-size: 30px;
+}
+
+.course-empty-state {
+    display: flex;
+    min-height: 340px;
+    padding: 52px 24px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.course-empty-state h2 {
+    margin-top: 20px;
+    font-size: 32px;
+}
+
+.course-empty-state p {
+    max-width: 590px;
+    margin: 12px auto 24px;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.65;
+}
+
+@media (max-width: 1100px) {
+    .course-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .course-workspace {
+        padding: 34px 22px 54px;
+    }
+
+    .course-page-heading,
+    .course-section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .course-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.course-page-heading h1 {
+    font-weight: 400;
+    letter-spacing: -1.5px;
+}

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <title>{{ course["name"] }} | Planet</title>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="logo-icon">P</span>
+                <span>Planet</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard">
+                    <span>⌂</span>
+                    Dashboard
+                </a>
+
+                <a class="active" href="/semester">
+                    <span>▤</span>
+                    Courses &amp; Grades
+                </a>
+
+                <a href="#">
+                    <span>✦</span>
+                    Study Plan
+                </a>
+
+                <a href="#">
+                    <span>□</span>
+                    Calendar
+                </a>
+
+                <a href="#">
+                    <span>✓</span>
+                    To-Do
+                </a>
+
+                <a href="#">
+                    <span>◎</span>
+                    Goals
+                </a>
+
+                <a href="#">
+                    <span>♡</span>
+                    Gratitude
+                </a>
+
+                <a href="#">
+                    <span>◉</span>
+                    Focus
+                </a>
+
+                <a href="#">
+                    <span>⚙</span>
+                    Settings
+                </a>
+            </nav>
+
+            <div class="sidebar-profile">
+                <div class="profile-circle">
+                    {{ name[0] }}
+                </div>
+
+                <div class="profile-details">
+                    <span class="profile-name">{{ name }}</span>
+                    <a class="sign-out-link" href="/logout">Sign out</a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <input
+                    type="search"
+                    placeholder="Search courses, tasks, exams..."
+                >
+
+                <button type="button" class="dark-button">
+                    ＋ Add assessment
+                </button>
+            </header>
+
+            <section class="course-workspace">
+                <a class="course-back-link" href="/semester">
+                    ← Courses &amp; Grades
+                </a>
+
+                <header class="course-page-heading">
+                    <div>
+                        <p class="eyebrow">
+                            {{ course["semester_name"] }} · {{ course["code"] }}
+                        </p>
+
+                        <h1>{{ course["name"] }}</h1>
+
+                        <p>
+                            {% if course["schedule"] %}
+                                {{ course["schedule"] }}
+                            {% else %}
+                                No class schedule added yet
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <span class="course-colour-chip {{ course['colour'] }}">
+                        {{ course["colour"] | capitalize }}
+                    </span>
+                </header>
+
+                <section class="course-summary-grid">
+                    <article class="course-summary-card">
+                        <span>Current grade</span>
+                        <strong>—</strong>
+                        <small>Add graded assessments to calculate it</small>
+                    </article>
+
+                    <article class="course-summary-card">
+                        <span>Completed weight</span>
+                        <strong>0%</strong>
+                        <small>No assessments graded yet</small>
+                    </article>
+
+                    <article class="course-summary-card">
+                        <span>Remaining weight</span>
+                        <strong>100%</strong>
+                        <small>Across upcoming assessments</small>
+                    </article>
+
+                    <article class="course-summary-card">
+                        <span>Next due</span>
+                        <strong>—</strong>
+                        <small>No upcoming assessment yet</small>
+                    </article>
+                </section>
+
+                <section class="course-content-card">
+                    <div class="course-section-heading">
+                        <div>
+                            <p class="eyebrow">COURSEWORK</p>
+                            <h2>Assessments &amp; grades</h2>
+                        </div>
+
+                        <button type="button" class="dark-button">
+                            ＋ Add assessment
+                        </button>
+                    </div>
+
+                    <div class="course-empty-state">
+                        <span class="empty-state-icon">✦</span>
+                        <h2>No assessments added yet</h2>
+
+                        <p>
+                            Add assignments, labs, quizzes and exams to track
+                            their weights, due dates and grades.
+                        </p>
+
+                        <button type="button" class="dark-button">
+                            Add your first assessment
+                        </button>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
