@@ -154,7 +154,7 @@ body {
     font-weight: normal;
 }
 
-.login-card > p {
+.login-card>p {
     margin: 0 0 28px;
 
     color: var(--muted);
@@ -264,6 +264,7 @@ form button:hover {
         padding: 30px 24px;
     }
 }
+
 .name-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -279,6 +280,7 @@ form button:hover {
         grid-template-columns: 1fr;
     }
 }
+
 .form-error {
     margin: 18px 0 4px;
     padding: 12px 14px;
@@ -292,6 +294,7 @@ form button:hover {
     font-size: 12px;
     line-height: 1.5;
 }
+
 /* =====================================
    Dashboard Layout
 ===================================== */
@@ -837,7 +840,7 @@ form button:hover {
     display: block;
 }
 
-.recommendation-card > p:not(.eyebrow) {
+.recommendation-card>p:not(.eyebrow) {
     color: rgba(255, 255, 255, 0.72);
     font-size: 12px;
     line-height: 1.6;
@@ -864,6 +867,7 @@ form button:hover {
 ===================================== */
 
 @media (max-width: 1000px) {
+
     .goal-grid,
     .dashboard-detail-grid {
         grid-template-columns: 1fr;
@@ -903,6 +907,7 @@ form button:hover {
     color: var(--berry);
     text-decoration: underline;
 }
+
 .semester-page {
     min-height: 100vh;
     margin: 0;
@@ -995,6 +1000,7 @@ form button:hover {
     font-weight: 700;
     cursor: pointer;
 }
+
 .saved-semesters {
     margin-top: 36px;
 }
@@ -1046,6 +1052,7 @@ form button:hover {
     color: var(--muted);
     text-align: center;
 }
+
 .semester-card-information {
     flex: 1;
 }
@@ -1064,6 +1071,7 @@ form button:hover {
 .select-semester-button:hover {
     opacity: 0.88;
 }
+
 .delete-semester-button {
     padding: 10px 16px;
     border: 1px solid var(--line);
@@ -1079,6 +1087,7 @@ form button:hover {
     border-color: var(--berry);
     color: var(--berry);
 }
+
 /* =====================================
    Semester Workspace
 ===================================== */
@@ -1104,7 +1113,7 @@ form button:hover {
     font-weight: normal;
 }
 
-.semester-page-heading > div > p:last-child {
+.semester-page-heading>div>p:last-child {
     margin: 0;
     color: var(--muted);
 }
@@ -1341,6 +1350,7 @@ form button:hover {
 }
 
 @media (max-width: 850px) {
+
     .semester-page-heading,
     .semester-tabs-section {
         align-items: flex-start;
@@ -1353,6 +1363,7 @@ form button:hover {
 }
 
 @media (max-width: 600px) {
+
     .semester-heading-actions,
     .empty-state-actions,
     .topbar-actions {
@@ -1364,6 +1375,7 @@ form button:hover {
         grid-template-columns: 1fr;
     }
 }
+
 /* =====================================
    Dashboard Semester Switcher
 ===================================== */
@@ -1446,6 +1458,7 @@ form button:hover {
         display: none;
     }
 }
+
 /* =====================================
    Add Course Form
 ===================================== */
@@ -1510,7 +1523,7 @@ form button:hover {
     gap: 12px;
 }
 
-.course-form-fields > div {
+.course-form-fields>div {
     display: flex;
     flex-direction: column;
     gap: 7px;
@@ -1568,6 +1581,7 @@ form button:hover {
         width: 100%;
     }
 }
+
 /* =====================================
    Semester Course Cards
 ===================================== */
@@ -1676,6 +1690,7 @@ form button:hover {
         grid-template-columns: 1fr;
     }
 }
+
 /* =====================================
    Delete Course Button
 ===================================== */
@@ -1724,11 +1739,13 @@ form button:hover {
     background-color: #f8eef1;
     color: var(--berry);
 }
+
 .course-card-link {
     display: block;
     color: inherit;
     text-decoration: none;
 }
+
 /* Course-card hover lift on the Courses & Grades page */
 .course-card {
     transition:
@@ -1788,7 +1805,7 @@ form button:hover {
     color: var(--ink);
 }
 
-.course-page-heading > div > p:last-child {
+.course-page-heading>div>p:last-child {
     margin: 0;
     color: var(--muted);
     font-size: 17px;
@@ -1927,10 +1944,12 @@ form button:hover {
         grid-template-columns: 1fr;
     }
 }
+
 .course-page-heading h1 {
     font-weight: 400;
     letter-spacing: -1.5px;
 }
+
 .dark-button {
     text-decoration: none;
 }
@@ -1959,7 +1978,7 @@ form button:hover {
     font-weight: 400;
 }
 
-.assessment-form-heading > p {
+.assessment-form-heading>p {
     margin: 0;
     color: var(--muted);
     font-size: 14px;
@@ -2012,6 +2031,7 @@ form button:hover {
         grid-template-columns: 1fr;
     }
 }
+
 .assessment-list {
     margin-top: 28px;
 }
@@ -2020,11 +2040,7 @@ form button:hover {
 .assessment-row {
     display: grid;
     grid-template-columns:
-        minmax(240px, 2fr)
-        1fr
-        0.7fr
-        0.7fr
-        0.6fr;
+        minmax(240px, 2fr) 1fr 0.7fr 0.7fr 0.6fr;
     gap: 22px;
     align-items: center;
 }
@@ -2101,6 +2117,7 @@ form button:hover {
         grid-column: 1 / -1;
     }
 }
+
 .delete-assessment-button {
     padding: 8px 12px;
     border: 1px solid #e4c7d1;
@@ -2238,6 +2255,7 @@ form button:hover {
         padding: 28px 22px;
     }
 }
+
 .assessment-actions {
     display: flex;
     align-items: center;
@@ -2269,7 +2287,414 @@ form button:hover {
     line-height: 1;
     text-decoration: none;
 }
+
 .course-summary-card .next-due-value {
     font-size: 25px;
     line-height: 1.15;
+}
+
+.final-grade-calculator {
+    margin-top: 24px;
+    padding: 34px;
+
+    border: 1px solid var(--line);
+    border-radius: 22px;
+
+    background: white;
+}
+
+.final-grade-heading h2 {
+    margin: 5px 0 8px;
+
+    font-family: Georgia, serif;
+    font-size: 32px;
+    font-weight: 500;
+}
+
+.final-grade-heading>div>p:last-child {
+    margin: 0;
+    color: var(--muted);
+}
+
+.final-grade-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    align-items: end;
+    gap: 16px;
+
+    margin-top: 28px;
+}
+
+.final-grade-form label {
+    display: grid;
+    gap: 9px;
+
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.final-grade-form input {
+    width: 100%;
+    min-height: 50px;
+    padding: 0 15px;
+
+    border: 1px solid var(--line);
+    border-radius: 12px;
+
+    background: white;
+    color: var(--ink);
+    font: inherit;
+    box-sizing: border-box;
+}
+
+.final-grade-form input[readonly] {
+    background: var(--paper);
+    color: var(--muted);
+}
+
+.final-grade-form .dark-button {
+    min-height: 50px;
+    margin: 0;
+}
+
+.grade-calculation-result {
+    margin-top: 22px;
+    padding: 24px;
+
+    border-radius: 16px;
+    background: #f7edf1;
+}
+
+.grade-calculation-result h3 {
+    margin: 5px 0 8px;
+    font-family: Georgia, serif;
+    font-size: 25px;
+    font-weight: 500;
+}
+
+.grade-calculation-result p:last-child {
+    margin-bottom: 0;
+}
+
+.required-grade {
+    display: block;
+    margin: 8px 0;
+
+    color: var(--berry);
+    font-family: Georgia, serif;
+    font-size: 52px;
+    font-weight: 500;
+}
+
+@media (max-width: 950px) {
+    .final-grade-form {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 650px) {
+    .final-grade-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+.course-workspace-merged {
+    max-width: 1540px;
+    margin: 0 auto
+}
+
+.merged-course-heading {
+    margin-bottom: 28px
+}
+
+.course-overview-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, .9fr) minmax(520px, 1.35fr);
+    gap: 22px;
+    align-items: stretch
+}
+
+.course-grade-hero,
+.course-assessments-panel,
+.assessment-entry-card,
+.final-grade-planner {
+    border: 1px solid #ddd6ca;
+    border-radius: 22px
+}
+
+.course-grade-hero {
+    display: flex;
+    flex-direction: column;
+    min-height: 430px;
+    padding: 34px;
+    color: #fff;
+    background: #23231f
+}
+
+.course-grade-hero .eyebrow {
+    color: #e7afc1
+}
+
+.course-grade-number {
+    margin: 40px 0 10px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(5rem, 9vw, 8.5rem);
+    font-weight: 400;
+    line-height: .82
+}
+
+.course-grade-number span {
+    margin-left: 5px;
+    color: #e7afc1;
+    font-size: .34em
+}
+
+.course-grade-caption {
+    color: #eeeae2
+}
+
+.course-grade-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: auto;
+    padding-top: 28px;
+    border-top: 1px solid rgba(255, 255, 255, .16)
+}
+
+.course-grade-stats div,
+.compact-assessment-main div,
+.assessment-metric {
+    display: grid;
+    gap: 4px
+}
+
+.course-grade-stats span {
+    color: #c9c6be;
+    font-size: .76rem
+}
+
+.course-grade-stats strong {
+    font-size: .98rem
+}
+
+.course-assessments-panel {
+    padding: 28px;
+    background: #fff
+}
+
+.compact-panel-heading,
+.planner-heading,
+.assessment-form-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: flex-start
+}
+
+.compact-panel-heading h2,
+.planner-heading h2,
+.assessment-form-heading h2,
+.planner-card h3 {
+    margin: 5px 0 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 500
+}
+
+.outline-button {
+    display: inline-flex;
+    padding: 11px 16px;
+    border: 1px solid #d8d0c3;
+    border-radius: 12px;
+    color: #23231f;
+    background: #fff;
+    text-decoration: none;
+    font-weight: 700
+}
+
+.compact-assessment-list {
+    margin-top: 22px
+}
+
+.compact-assessment-row {
+    display: grid;
+    grid-template-columns: minmax(190px, 1.5fr) 72px 72px auto;
+    gap: 16px;
+    align-items: center;
+    padding: 17px 0;
+    border-top: 1px solid #e5dfd5
+}
+
+.compact-assessment-main {
+    display: flex;
+    gap: 11px;
+    align-items: center
+}
+
+.compact-assessment-main small,
+.assessment-metric small {
+    color: #77736a
+}
+
+.compact-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center
+}
+
+.compact-actions form {
+    margin: 0
+}
+
+.compact-actions .edit-assessment-button,
+.compact-actions .delete-assessment-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-height: 38px;
+    margin: 0;
+    padding: 8px 11px;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none
+}
+
+.compact-empty-state {
+    display: grid;
+    place-items: center;
+    min-height: 270px;
+    text-align: center
+}
+
+.compact-empty-state span {
+    color: #9e3c63;
+    font-size: 2rem
+}
+
+.assessment-entry-card {
+    margin-top: 22px;
+    padding: 28px;
+    background: #fbfaf7
+}
+
+.merged-assessment-form {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent
+}
+
+.final-grade-planner {
+    margin-top: 22px;
+    padding: 30px;
+    background: #fff
+}
+
+.planner-heading>p {
+    max-width: 460px;
+    color: #77736a
+}
+
+.planner-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 24px
+}
+
+.planner-card {
+    padding: 24px;
+    border: 1px solid #e2dbcf;
+    border-radius: 18px;
+    background: #fbfaf7
+}
+
+.planner-card-accent {
+    background: #f7edf1;
+    border-color: #e6c7d2
+}
+
+.planner-card>p {
+    color: #77736a
+}
+
+.planner-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: end;
+    margin-top: 20px
+}
+
+.planner-form label {
+    display: grid;
+    gap: 7px;
+    font-size: .82rem;
+    font-weight: 700
+}
+
+.planner-form input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 13px;
+    border: 1px solid #d8d0c3;
+    border-radius: 11px;
+    background: #fff
+}
+
+.planner-form .dark-button {
+    min-height: 48px;
+    grid-column: 1/-1
+}
+
+.planner-result {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 11px;
+    color: #27251f;
+    background: #ebe6dc
+}
+
+.planner-result strong {
+    margin-right: 6px;
+    color: #9e3c63
+}
+
+@media(max-width:1100px) {
+
+    .course-overview-grid,
+    .planner-grid {
+        grid-template-columns: 1fr
+    }
+
+    .course-grade-hero {
+        min-height: 360px
+    }
+}
+
+@media(max-width:760px) {
+    .compact-assessment-row {
+        grid-template-columns: 1fr 1fr
+    }
+
+    .compact-assessment-main,
+    .compact-actions {
+        grid-column: 1/-1
+    }
+
+    .planner-form,
+    .course-grade-stats {
+        grid-template-columns: 1fr
+    }
+
+    .compact-panel-heading,
+    .planner-heading,
+    .assessment-form-heading {
+        flex-direction: column
+    }
 }

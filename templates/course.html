@@ -129,6 +129,7 @@
                         {{ course["colour"] | capitalize }}
                     </span>
                 </header>
+                
 
                 <section class="course-summary-grid">
 
@@ -408,6 +409,117 @@
 
                     {% endif %}
 
+                </section>
+
+                <section class="final-grade-calculator">
+                    <div class="final-grade-heading">
+                        <div>
+                            <p class="eyebrow">GRADE PLANNER</p>
+
+                            <h2>Final grade calculator</h2>
+
+                            <p>
+                                Choose your desired final grade to see
+                                what average you need on your remaining
+                                coursework.
+                            </p>
+                        </div>
+                    </div>
+
+                    <form
+                        method="POST"
+    action="{{ url_for(
+        'course_details',
+        course_id=course['id']
+    ) }}#final-grade-calculator"
+    class="final-grade-form"
+    id="final-grade-calculator"
+                    >
+                        <label>
+                            Current grade
+
+                            <input
+                                type="text"
+                                value="{% if current_grade is not none %}{{ current_grade }}%{% else %}Not calculated{% endif %}"
+                                readonly
+                            >
+                        </label>
+
+                        <label>
+                            Remaining weight
+
+                            <input
+                                type="text"
+                                value="{{ remaining_weight }}%"
+                                readonly
+                            >
+                        </label>
+
+                        <label>
+                            Target final grade
+
+                            <input
+                                type="number"
+                                name="target_grade"
+                                value="{{ target_grade if target_grade is not none else '' }}"
+                                placeholder="e.g. 85"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                required
+                            >
+                        </label>
+
+                        <button type="submit" class="dark-button">
+                            Calculate
+                        </button>
+                    </form>
+
+                    {% if required_grade is not none %}
+                        <div class="grade-calculation-result">
+                            {% if required_grade > 100 %}
+                                <p class="eyebrow">RESULT</p>
+
+                                <h3>
+                                    This target is not currently possible.
+                                </h3>
+
+                                <p>
+                                    You would need an average of
+                                    <strong>{{ required_grade }}%</strong>
+                                    on your remaining coursework.
+                                </p>
+
+                            {% elif required_grade <= 0 %}
+                                <p class="eyebrow">RESULT</p>
+
+                                <h3>
+                                    You’ve already secured your target.
+                                </h3>
+
+                                <p>
+                                    Based on your recorded assessments,
+                                    you have already earned enough weighted
+                                    marks to reach {{ target_grade }}%.
+                                </p>
+
+                            {% else %}
+                                <p class="eyebrow">AVERAGE NEEDED</p>
+
+                                <strong class="required-grade">
+                                    {{ required_grade }}%
+                                </strong>
+
+                                <p>
+                                    You need an average of
+                                    {{ required_grade }}% across your
+                                    remaining {{ remaining_weight }}% of
+                                    coursework to finish with
+                                    {{ target_grade }}%.
+                                </p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
                 </section>
             </section>
         </main>

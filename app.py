@@ -562,7 +562,10 @@ def edit_assessment(assessment_id):
         assessment=assessment
     )
 
-@app.route("/courses/<int:course_id>", methods=["GET"])
+@app.route(
+    "/courses/<int:course_id>",
+    methods=["GET", "POST"]
+)
 def course_details(course_id):
     if "user_id" not in session:
         return redirect(url_for("home"))
@@ -570,8 +573,6 @@ def course_details(course_id):
     connection = sqlite3.connect("planet.db")
     connection.row_factory = sqlite3.Row
 
-    # Retrieve the course and confirm that it belongs
-    # to the signed-in user.
     course = connection.execute(
         """
         SELECT
@@ -593,7 +594,6 @@ def course_details(course_id):
         connection.close()
         return redirect(url_for("semester"))
 
-    # Retrieve all assessments for this course.
     assessments = connection.execute(
         """
         SELECT * FROM assessments
@@ -632,13 +632,40 @@ def course_details(course_id):
         )
 
         current_grade = round(current_grade, 1)
+
     else:
         current_grade = None
 
     remaining_weight = 100 - completed_weight
 
-    completed_weight = round(completed_weight, 1)
-    remaining_weight = round(remaining_weight, 1)
+    target_grade = None
+    required_grade = None
+
+    if request.method == "POST":
+        target_grade = float(
+            request.form["target_grade"]
+        )
+
+        if remaining_weight > 0:
+            required_grade = (
+                (target_grade * 100)
+                - weighted_points
+            ) / remaining_weight
+
+            required_grade = round(
+                required_grade,
+                1
+            )
+
+    completed_weight = round(
+        completed_weight,
+        1
+    )
+
+    remaining_weight = round(
+        remaining_weight,
+        1
+    )
 
     return render_template(
         "course.html",
@@ -648,7 +675,9 @@ def course_details(course_id):
         current_grade=current_grade,
         completed_weight=completed_weight,
         remaining_weight=remaining_weight,
-        next_due=next_due
+        next_due=next_due,
+        target_grade=target_grade,
+        required_grade=required_grade
     )
 @app.template_filter("pretty_date")
 def pretty_date(value):
