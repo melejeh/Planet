@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Planet</title>
+</head>
+<body>
+    <main class="login-page">
+
+        <section class="welcome-section">
+            <div class="logo">
+                <span class="logo-icon">P</span>
+                <span>Planet</span>
+            </div>
+
+            <div class="welcome-text">
+                <p class="eyebrow">YOUR SEMESTER, ORGANIZED</p>
+                <h1>Welcome to your planet.</h1>
+                <p class="description">
+                    Courses, deadlines, grades and study time in one place,
+                    built around the way you actually work.
+                </p>
+            </div>
+        </section>
+
+        <section class="form-section">
+            <div class="login-card">
+                <h2>Welcome back!</h2>
+                <p>Enter your details to continue to your planet.</p>
+                {% if error %}
+                 <div class="form-error">
+                 {{ error }}
+                </div>
+                {% endif %}
+
+
+                <form method="POST" action="/login">
+    <label for="name">Name</label>
+    <input
+        type="text"
+        id="name"
+        name="name"
+        placeholder="Enter your name"
+        required
+    >
+
+    <label for="email">Email address</label>
+    <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="you@example.com"
+        required
+    >
+
+    <label for="password">Password</label>
+    <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="Enter your password"
+        required
+    >
+
+    <button type="submit">Enter my planet</button>
+</form>
+
+                <p class="account-text">
+                    New to Planet? <a href="/signup">Create an account</a>
+                </p>
+            </div>
+        </section>
+
+    </main>
+</body>
+</html>

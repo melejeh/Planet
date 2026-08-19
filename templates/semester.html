@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <title>Semester | Planet</title>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="logo-icon">P</span>
+                <span>Planet</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard">
+                    <span>⌂</span>
+                    Dashboard
+                </a>
+
+                <a class="active" href="/semester">
+                    <span>▤</span>
+                    Courses &amp; Grades
+                </a>
+
+                <a href="#">
+                    <span>✦</span>
+                    Study Plan
+                </a>
+
+                <a href="#">
+                    <span>□</span>
+                    Calendar
+                </a>
+
+                <a href="#">
+                    <span>✓</span>
+                    To-Do
+                </a>
+
+                <a href="#">
+                    <span>◎</span>
+                    Goals
+                </a>
+
+                <a href="#">
+                    <span>♡</span>
+                    Gratitude
+                </a>
+
+                <a href="#">
+                    <span>◉</span>
+                    Focus
+                </a>
+
+                <a href="#">
+                    <span>⚙</span>
+                    Settings
+                </a>
+            </nav>
+
+            <div class="sidebar-profile">
+                <div class="profile-circle">
+                    {{ name[0] }}
+                </div>
+
+                <div class="profile-details">
+                    <span class="profile-name">{{ name }}</span>
+
+                    <a class="sign-out-link" href="/logout">
+                        Sign out
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Semester Area -->
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <input
+                    type="search"
+                    placeholder="Search courses, tasks, exams..."
+                >
+
+                <div class="topbar-actions">
+                    <button type="button" class="secondary-button">
+                        Import schedule
+                    </button>
+
+                    <button
+                        type="button"
+                        class="dark-button"
+                        onclick="toggleSemesterForm()"
+                    >
+                        ＋ Add
+                    </button>
+                </div>
+            </header>
+
+            <section class="semester-workspace">
+
+                {% set selected = namespace(semester=None) %}
+
+                {% for semester in semesters %}
+                    {% if semester["id"] == session.get("active_semester_id") %}
+                        {% set selected.semester = semester %}
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Heading -->
+                <header class="semester-page-heading">
+                    <div>
+                        <p class="eyebrow">
+                            {% if selected.semester %}
+                                {{ selected.semester["name"] }}
+                            {% else %}
+                                YOUR SEMESTERS
+                            {% endif %}
+                        </p>
+
+                        <h1>Semester</h1>
+
+                        <p>
+                            Courses, schedules, assessments and course files.
+                        </p>
+                    </div>
+
+                    <div class="semester-heading-actions">
+                        <button type="button" class="secondary-button">
+                            ▦ Import timetable
+                        </button>
+
+                        <button
+                           type="button"
+                        class="dark-button"
+                         onclick="toggleCourseForm()"
+                         >
+                        ＋ Add course
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Semester Tabs -->
+                <section class="semester-tabs-section">
+                    <div class="semester-tabs">
+
+                        {% for semester in semesters %}
+                            <div class="semester-tab-group">
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for(
+                                        'select_semester',
+                                        semester_id=semester['id']
+                                    ) }}"
+                                >
+                                    <button
+                                        type="submit"
+                                        class="semester-tab {% if semester['id'] == session.get('active_semester_id') %}active{% endif %}"
+                                    >
+                                        {{ semester["name"] }}
+                                    </button>
+                                </form>
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for(
+                                        'delete_semester',
+                                        semester_id=semester['id']
+                                    ) }}"
+                                    onsubmit="return confirm('Are you sure you want to delete this semester?');"
+                                >
+                                    <button
+                                        class="semester-delete-icon"
+                                        type="submit"
+                                        aria-label="Delete {{ semester['name'] }}"
+                                        title="Delete semester"
+                                    >
+                                        ×
+                                    </button>
+                                </form>
+
+                            </div>
+                        {% endfor %}
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="secondary-button"
+                        onclick="toggleSemesterForm()"
+                    >
+                        ＋ Add semester
+                    </button>
+                </section>
+
+                <!-- Add Semester Form -->
+                <section
+                    id="semester-form-panel"
+                    class="semester-form-panel"
+                >
+                    <div class="semester-form-heading">
+                        <div>
+                            <p class="eyebrow">NEW SEMESTER</p>
+                            <h2>Add a semester</h2>
+                        </div>
+
+                        <button
+                            class="close-semester-form"
+                            type="button"
+                            onclick="toggleSemesterForm()"
+                            aria-label="Close form"
+                        >
+                            ×
+                        </button>
+                    </div>
+
+                    <form method="POST" action="/semester">
+                        <div class="semester-form-fields">
+                            <div>
+                                <label for="semester_name">
+                                    Semester name
+                                </label>
+
+                                <input
+                                    id="semester_name"
+                                    name="semester_name"
+                                    type="text"
+                                    placeholder="Fall 2026"
+                                    required
+                                >
+                            </div>
+
+                            <div>
+                                <label for="start_date">
+                                    Start date
+                                </label>
+
+                                <input
+                                    id="start_date"
+                                    name="start_date"
+                                    type="date"
+                                >
+                            </div>
+
+                            <div>
+                                <label for="end_date">
+                                    End date
+                                </label>
+
+                                <input
+                                    id="end_date"
+                                    name="end_date"
+                                    type="date"
+                                >
+                            </div>
+
+                            <button class="dark-button" type="submit">
+                                Create semester
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Add Course Form -->
+                {% if selected.semester %}
+                    <section
+                        id="course-form-panel"
+                        class="course-form-panel"
+                    >
+                        <div class="course-form-heading">
+                            <div>
+                                <p class="eyebrow">NEW COURSE</p>
+                                <h2>Add a course</h2>
+
+                                <p>
+                                    This course will be added to
+                                    {{ selected.semester["name"] }}.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="close-course-form"
+                                onclick="toggleCourseForm()"
+                                aria-label="Close course form"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <form method="POST" action="/courses/add">
+                            <div class="course-form-fields">
+                                <div>
+                                    <label for="course_code">Course code</label>
+                                    <input
+                                        id="course_code"
+                                        name="course_code"
+                                        type="text"
+                                        placeholder="SE 3309"
+                                        required
+                                    >
+                                </div>
+
+                                <div>
+                                    <label for="course_name">Course name</label>
+                                    <input
+                                        id="course_name"
+                                        name="course_name"
+                                        type="text"
+                                        placeholder="Database Management"
+                                        required
+                                    >
+                                </div>
+
+                                <div>
+                                    <label for="schedule">Schedule</label>
+                                    <input
+                                        id="schedule"
+                                        name="schedule"
+                                        type="text"
+                                        placeholder="Tue, Thu · 1:00–2:15 PM"
+                                    >
+                                </div>
+
+                                <div>
+                                    <label for="colour">Card colour</label>
+                                    <select id="colour" name="colour">
+                                        <option value="berry">Berry</option>
+                                        <option value="sage">Sage</option>
+                                        <option value="gold">Gold</option>
+                                    </select>
+                                </div>
+
+                                <button class="dark-button" type="submit">
+                                    Add course
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                {% endif %}
+
+                <!-- Courses area for the selected semester -->
+{% if selected.semester %}
+
+    {% if courses %}
+        <section class="course-card-grid">
+
+            {% for course in courses %}
+                <article class="course-card">
+                    <span
+                        class="course-card-accent {{ course['colour'] }}"
+                    ></span>
+
+                    <form
+                        class="course-delete-form"
+                        method="POST"
+                        action="{{ url_for(
+                            'delete_course',
+                            course_id=course['id']
+                        ) }}"
+                        onsubmit="return confirm('Are you sure you want to delete this course?');"
+                    >
+                        <button
+                            type="submit"
+                            class="course-delete-button"
+                            aria-label="Delete {{ course['name'] }}"
+                            title="Delete course"
+                        >
+                            ×
+                        </button>
+                    </form>
+
+                    <a
+                        class="course-card-content course-card-link"
+                        href="{{ url_for(
+                            'course_details',
+                            course_id=course['id']
+                        ) }}"
+                        style="color: inherit; text-decoration: none;"
+                    >
+                        <p class="course-code">
+                            {{ course["code"] }}
+                        </p>
+
+                        <h2>
+                            {{ course["name"] }}
+                        </h2>
+
+                        <p class="course-schedule">
+                            {% if course["schedule"] %}
+                                {{ course["schedule"] }}
+                            {% else %}
+                                No schedule added
+                            {% endif %}
+                        </p>
+
+                        <div class="course-card-details">
+                            <div>
+                                <span>CURRENT GRADE</span>
+                                <strong>—</strong>
+                            </div>
+
+                            <div>
+                                <span>NEXT DUE</span>
+                                <strong>—</strong>
+                            </div>
+                        </div>
+                    </a>
+                </article>
+            {% endfor %}
+
+        </section>
+    {% else %}
+        <section class="semester-empty-state">
+            <span class="empty-state-icon">✦</span>
+
+            <h2>No courses in this semester yet</h2>
+
+            <p>
+                Add your courses manually or import your
+                timetable to begin organizing this semester.
+            </p>
+
+            <div class="empty-state-actions">
+                <button
+                    type="button"
+                    class="secondary-button"
+                    onclick="toggleCourseForm()"
+                >
+                    Add courses manually
+                </button>
+
+                <button type="button" class="dark-button">
+                    Import timetable
+                </button>
+            </div>
+        </section>
+    {% endif %}
+
+{% else %}
+    <section class="semester-empty-state">
+        <span class="empty-state-icon">◫</span>
+
+        <h2>Select a semester</h2>
+
+        <p>
+            Choose one of your semesters above or create
+            a new semester to get started.
+        </p>
+
+        <button
+            type="button"
+            class="dark-button"
+            onclick="toggleSemesterForm()"
+        >
+            Create a semester
+        </button>
+    </section>
+{% endif %}
+
+            </section>
+        </main>
+    </div>
+
+    <script>
+        function toggleSemesterForm() {
+            const panel = document.getElementById(
+                "semester-form-panel"
+            );
+
+            panel.classList.toggle("is-open");
+
+            if (panel.classList.contains("is-open")) {
+                panel.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center"
+                });
+            }
+        }
+        function toggleCourseForm() {
+    const panel = document.getElementById(
+        "course-form-panel"
+    );
+
+    if (!panel) {
+        return;
+    }
+
+    panel.classList.toggle("is-open");
+
+    if (panel.classList.contains("is-open")) {
+        panel.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+    }
+}
+    </script>
+</body>
+</html>

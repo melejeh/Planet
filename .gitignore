@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+planet.db
+.env
+.DS_Store

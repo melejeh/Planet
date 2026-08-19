@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <title>Dashboard | Planet</title>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="logo-icon">P</span>
+                <span>Planet</span>
+            </div>
+
+
+            <nav class="sidebar-nav">
+                <a class="active" href="#">
+                    <span>⌂</span>
+                    Dashboard
+                </a>
+
+                <a href="/semester">
+                <span>◫</span>
+                 Courses &amp; Grades
+                </a>
+
+                <a href="#">
+                    <span>✦</span>
+                    Study Plan
+                </a>
+
+                <a href="#">
+                    <span>□</span>
+                    Calendar
+                </a>
+
+                <a href="#">
+                    <span>✓</span>
+                    To-Do
+                </a>
+
+                <a href="#">
+                    <span>◎</span>
+                    Goals
+                </a>
+
+                <a href="#">
+                    <span>♡</span>
+                    Gratitude
+                </a>
+            </nav>
+
+            <div class="sidebar-profile">
+                <div class="profile-circle">
+                    {{ name[0] }}
+                </div>
+
+                <div class="profile-details">
+                    <span class="profile-name">{{ name }}</span>
+                    <a class="sign-out-link" href="/logout">
+                        Sign out
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+    <div class="dashboard-topbar-left">
+
+        {% if semesters %}
+            <form
+                class="semester-switcher"
+                method="POST"
+            >
+                <label for="dashboard-semester">
+                    Semester
+                </label>
+
+                <select
+                    id="dashboard-semester"
+                    onchange="
+                        if (this.value) {
+                            this.form.action = this.value;
+                            this.form.submit();
+                        }
+                    "
+                >
+                    <option
+                        value=""
+                        disabled
+                        {% if not session.get("active_semester_id") %}
+                            selected
+                        {% endif %}
+                    >
+                        Choose semester
+                    </option>
+
+                    {% for semester in semesters %}
+                        <option
+                            value="{{ url_for(
+                                'select_semester',
+                                semester_id=semester['id']
+                            ) }}"
+                            {% if semester["id"] == session.get("active_semester_id") %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ semester["name"] }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        {% else %}
+            <a
+                class="create-semester-link"
+                href="/semester"
+            >
+                ＋ Create semester
+            </a>
+        {% endif %}
+
+        <input
+            type="search"
+            placeholder="Search your planet..."
+        >
+    </div>
+
+    <button type="button">
+        ＋ Add new
+    </button>
+</header>
+
+            <section class="dashboard-content">
+                <div class="dashboard-heading">
+                    <div>
+                        <p class="eyebrow">YOUR DASHBOARD</p>
+
+                        <h1>
+                            Welcome to your planet, {{ name }}.
+                        </h1>
+
+                        <p>
+                            Your classes, deadlines and study plan for today.
+                        </p>
+                    </div>
+
+                    <button type="button">View study plan</button>
+                </div>
+
+                <section class="summary-grid">
+                    <article class="summary-card">
+                        <span>Tasks due this week</span>
+                        <strong>6</strong>
+                        <small>2 completed</small>
+                    </article>
+
+                    <article class="summary-card">
+                        <span>Planned study time</span>
+                        <strong>8.5h</strong>
+                        <small>3.5h remaining</small>
+                    </article>
+
+                    <article class="summary-card">
+                        <span>Next assessment</span>
+                        <strong>8 days</strong>
+                        <small>Database Management</small>
+                    </article>
+
+                    <article class="summary-card">
+                        <span>Projected average</span>
+                        <strong>84%</strong>
+                        <small>Up 2% this term</small>
+                    </article>
+                </section>
+                <section class="goals-strip dashboard-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">MY GOALS</p>
+            <h2>Small targets for this semester</h2>
+        </div>
+
+        <button type="button" class="text-button">
+            Manage goals →
+        </button>
+    </div>
+
+    <div class="goal-grid">
+        <article class="mini-goal">
+            <div class="goal-information">
+                <div>
+                    <strong>9 study hours</strong>
+                    <span>this week</span>
+                </div>
+
+                <b>6.5 / 9h</b>
+            </div>
+
+            <div class="progress-bar">
+                <span style="width: 72%;"></span>
+            </div>
+        </article>
+
+        <article class="mini-goal">
+            <div class="goal-information">
+                <div>
+                    <strong>Submit everything early</strong>
+                    <span>before 11:59 PM</span>
+                </div>
+
+                <b>4 / 6</b>
+            </div>
+
+            <div class="progress-bar">
+                <span style="width: 67%;"></span>
+            </div>
+        </article>
+
+        <article class="mini-goal">
+            <div class="goal-information">
+                <div>
+                    <strong>85% semester average</strong>
+                    <span>current projection</span>
+                </div>
+
+                <b>84%</b>
+            </div>
+
+            <div class="progress-bar">
+                <span style="width: 84%;"></span>
+            </div>
+        </article>
+    </div>
+</section>
+
+<section class="midterm-reminder">
+    <div>
+        <span class="midterm-badge">MIDTERM IN 8 DAYS</span>
+
+        <h2>Database Management</h2>
+
+        <p>
+            October 1 · 25% of your grade ·
+            3 review blocks already planned
+        </p>
+    </div>
+
+    <button type="button">View midterm plan →</button>
+</section>
+
+<section class="dashboard-detail-grid">
+    <article class="dashboard-card">
+        <div class="section-heading">
+            <h2>Today’s schedule</h2>
+
+            <button type="button" class="text-button">
+                Full calendar →
+            </button>
+        </div>
+
+        <div class="schedule-item">
+            <time>1:00 PM</time>
+
+            <span class="schedule-colour berry"></span>
+
+            <div>
+                <strong>Database Management</strong>
+                <p>Class · SSC 2036</p>
+            </div>
+
+            <small>75 min</small>
+        </div>
+
+        <div class="schedule-item">
+            <time>3:00 PM</time>
+
+            <span class="schedule-colour sage"></span>
+
+            <div>
+                <strong>SQL query practice</strong>
+                <p>Recommended study block</p>
+            </div>
+
+            <small>45 min</small>
+        </div>
+
+        <div class="schedule-item">
+            <time>7:00 PM</time>
+
+            <span class="schedule-colour gold"></span>
+
+            <div>
+                <strong>Use-case modelling</strong>
+                <p>Software Requirements</p>
+            </div>
+
+            <small>30 min</small>
+        </div>
+    </article>
+
+    <article class="recommendation-card">
+        <p class="eyebrow">RECOMMENDED STUDY BLOCK</p>
+
+        <h2>
+            Database Management
+            <span>3:00–3:45 PM</span>
+        </h2>
+
+        <p>
+            Scheduled before tomorrow’s deadline. Includes an
+            18-minute buffer based on your previous sessions.
+        </p>
+
+        <p>
+            <strong>Focus:</strong>
+            SQL query practice · Joins and subqueries
+        </p>
+
+        <button type="button">Start study block</button>
+    </article>
+</section>
+            </section>
+        </main>
+
+    </div>
+</body>
+</html>
