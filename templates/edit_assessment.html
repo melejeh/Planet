@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <title>Edit assessment | Planet</title>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="logo-icon">P</span>
+                <span>Planet</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/dashboard">
+                    <span>⌂</span>
+                    Dashboard
+                </a>
+
+                <a class="active" href="/semester">
+                    <span>▤</span>
+                    Courses &amp; Grades
+                </a>
+
+                <a href="#">
+                    <span>✦</span>
+                    Study Plan
+                </a>
+
+                <a href="#">
+                    <span>□</span>
+                    Calendar
+                </a>
+
+                <a href="#">
+                    <span>✓</span>
+                    To-Do
+                </a>
+
+                <a href="#">
+                    <span>◎</span>
+                    Goals
+                </a>
+
+                <a href="#">
+                    <span>♡</span>
+                    Gratitude
+                </a>
+            </nav>
+
+            <div class="sidebar-profile">
+                <div class="profile-circle">
+                    {{ name[0] }}
+                </div>
+
+                <div class="profile-details">
+                    <span class="profile-name">{{ name }}</span>
+                    <a class="sign-out-link" href="/logout">Sign out</a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="dashboard-main">
+            <section class="edit-assessment-workspace">
+
+                <a
+                    class="course-back-link"
+                    href="{{ url_for(
+                        'course_details',
+                        course_id=assessment['course_id']
+                    ) }}"
+                >
+                    ← Back to {{ assessment["course_name"] }}
+                </a>
+
+                <div class="edit-assessment-card">
+                    <p class="eyebrow">COURSEWORK</p>
+
+                    <h1>Edit assessment</h1>
+
+                    <p class="edit-assessment-description">
+                        Update the assessment information or add its
+                        grade when you receive it.
+                    </p>
+
+                    <form method="POST" class="edit-assessment-form">
+                        <label>
+                            Assessment name
+
+                            <input
+                                type="text"
+                                name="assessment_name"
+                                value="{{ assessment['name'] }}"
+                                required
+                            >
+                        </label>
+
+                        <div class="edit-assessment-grid">
+                            <label>
+                                Weight %
+
+                                <input
+                                    type="number"
+                                    name="weight"
+                                    value="{{ assessment['weight'] }}"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    required
+                                >
+                            </label>
+
+                            <label>
+                                Score %
+
+                                <input
+                                    type="number"
+                                    name="score"
+                                    value="{% if assessment['score'] is not none %}{{ assessment['score'] }}{% endif %}"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    placeholder="Not graded"
+                                >
+                            </label>
+
+                            <label>
+                                Due date
+
+                                <input
+                                    type="date"
+                                    name="due_date"
+                                    value="{{ assessment['due_date'] }}"
+                                    required
+                                >
+                            </label>
+                        </div>
+
+                        <div class="edit-assessment-actions">
+                            <a
+                                class="secondary-button"
+                                href="{{ url_for(
+                                    'course_details',
+                                    course_id=assessment['course_id']
+                                ) }}"
+                            >
+                                Cancel
+                            </a>
+
+                            <button type="submit" class="dark-button">
+                                Save changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

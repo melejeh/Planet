@@ -351,6 +351,17 @@ def course_details(course_id):
             session["user_id"]
         )
     ).fetchone()
+    assessments = connection.execute(
+    """
+    SELECT * FROM assessments
+    WHERE course_id = ?
+    ORDER BY due_date
+    """,
+    (
+        course_id,
+    )
+).fetchall()
+    
 
     connection.close()
 
@@ -360,7 +371,8 @@ def course_details(course_id):
     return render_template(
         "course.html",
         name=session["first_name"],
-        course=course
+        course=course,
+        assessments=assessments
     )
 
 @app.route(
@@ -393,6 +405,211 @@ def delete_course(course_id):
 
     return redirect(url_for("semester"))
 
+@app.route(
+    "/courses/<int:course_id>/assessments/add",
+    methods=["POST"]
+)
+def add_assessment(course_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    assessment_name = request.form["assessment_name"]
+    weight = request.form["weight"]
+    score = request.form["score"]
+    due_date = request.form["due_date"]
+
+    # Store an unfinished assessment without a score.
+    if score == "":
+        score = None
+
+    connection = sqlite3.connect("planet.db")
+
+    # Check that this course belongs to the signed-in user.
+    course = connection.execute(
+        """
+        SELECT courses.id
+        FROM courses
+        JOIN semesters
+            ON courses.semester_id = semesters.id
+        WHERE courses.id = ?
+        AND semesters.user_id = ?
+        """,
+        (
+            course_id,
+            session["user_id"]
+        )
+    ).fetchone()
+
+    if course is None:
+        connection.close()
+        return redirect(url_for("semester"))
+
+    connection.execute(
+        """
+        INSERT INTO assessments (
+            course_id,
+            name,
+            weight,
+            score,
+            due_date
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            course_id,
+            assessment_name,
+            weight,
+            score,
+            due_date
+        )
+    )
+
+    connection.commit()
+    connection.close()
+
+    return redirect(
+        url_for(
+            "course_details",
+            course_id=course_id
+        )
+    )
+@app.route(
+    "/assessments/<int:assessment_id>/delete",
+    methods=["POST"]
+)
+def delete_assessment(assessment_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+
+    # Find the assessment and verify that it belongs to this user.
+    assessment = connection.execute(
+        """
+        SELECT
+            assessments.id,
+            assessments.course_id
+        FROM assessments
+        JOIN courses
+            ON assessments.course_id = courses.id
+        JOIN semesters
+            ON courses.semester_id = semesters.id
+        WHERE assessments.id = ?
+        AND semesters.user_id = ?
+        """,
+        (
+            assessment_id,
+            session["user_id"]
+        )
+    ).fetchone()
+
+    if assessment is None:
+        connection.close()
+        return redirect(url_for("semester"))
+
+    course_id = assessment["course_id"]
+
+    connection.execute(
+        """
+        DELETE FROM assessments
+        WHERE id = ?
+        """,
+        (
+            assessment_id,
+        )
+    )
+
+    connection.commit()
+    connection.close()
+
+    return redirect(
+        url_for(
+            "course_details",
+            course_id=course_id
+        )
+    )
+@app.route(
+    "/assessments/<int:assessment_id>/edit",
+    methods=["GET", "POST"]
+)
+def edit_assessment(assessment_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+
+    # Retrieve the assessment and verify ownership.
+    assessment = connection.execute(
+        """
+        SELECT
+            assessments.*,
+            courses.name AS course_name
+        FROM assessments
+        JOIN courses
+            ON assessments.course_id = courses.id
+        JOIN semesters
+            ON courses.semester_id = semesters.id
+        WHERE assessments.id = ?
+        AND semesters.user_id = ?
+        """,
+        (
+            assessment_id,
+            session["user_id"]
+        )
+    ).fetchone()
+
+    if assessment is None:
+        connection.close()
+        return redirect(url_for("semester"))
+
+    if request.method == "POST":
+        assessment_name = request.form["assessment_name"]
+        weight = request.form["weight"]
+        score = request.form["score"]
+        due_date = request.form["due_date"]
+
+        if score == "":
+            score = None
+
+        connection.execute(
+            """
+            UPDATE assessments
+            SET
+                name = ?,
+                weight = ?,
+                score = ?,
+                due_date = ?
+            WHERE id = ?
+            """,
+            (
+                assessment_name,
+                weight,
+                score,
+                due_date,
+                assessment_id
+            )
+        )
+
+        connection.commit()
+        connection.close()
+
+        return redirect(
+            url_for(
+                "course_details",
+                course_id=assessment["course_id"]
+            )
+        )
+
+    connection.close()
+
+    return render_template(
+        "edit_assessment.html",
+        name=session["first_name"],
+        assessment=assessment
+    )ç
+
 
 if __name__ == "__main__":
- app.run(debug=True, port=5002)
+ app.run(debug=True, port=5000)

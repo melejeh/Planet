@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -77,25 +78,28 @@
                 </div>
 
                 <div class="profile-details">
-                    <span class="profile-name">{{ name }}</span>
-                    <a class="sign-out-link" href="/logout">Sign out</a>
+                    <span class="profile-name">
+                        {{ name }}
+                    </span>
+
+                    <a class="sign-out-link" href="/logout">
+                        Sign out
+                    </a>
                 </div>
             </div>
         </aside>
 
         <main class="dashboard-main">
+
             <header class="dashboard-topbar">
                 <input
                     type="search"
                     placeholder="Search courses, tasks, exams..."
                 >
-
-                <button type="button" class="dark-button">
-                    ＋ Add assessment
-                </button>
             </header>
 
             <section class="course-workspace">
+
                 <a class="course-back-link" href="/semester">
                     ← Courses &amp; Grades
                 </a>
@@ -103,7 +107,9 @@
                 <header class="course-page-heading">
                     <div>
                         <p class="eyebrow">
-                            {{ course["semester_name"] }} · {{ course["code"] }}
+                            {{ course["semester_name"] }}
+                            ·
+                            {{ course["code"] }}
                         </p>
 
                         <h1>{{ course["name"] }}</h1>
@@ -117,7 +123,9 @@
                         </p>
                     </div>
 
-                    <span class="course-colour-chip {{ course['colour'] }}">
+                    <span
+                        class="course-colour-chip {{ course['colour'] }}"
+                    >
                         {{ course["colour"] | capitalize }}
                     </span>
                 </header>
@@ -126,53 +134,242 @@
                     <article class="course-summary-card">
                         <span>Current grade</span>
                         <strong>—</strong>
-                        <small>Add graded assessments to calculate it</small>
+
+                        <small>
+                            Add graded assessments to calculate it
+                        </small>
                     </article>
 
                     <article class="course-summary-card">
                         <span>Completed weight</span>
                         <strong>0%</strong>
-                        <small>No assessments graded yet</small>
+
+                        <small>
+                            No assessments graded yet
+                        </small>
                     </article>
 
                     <article class="course-summary-card">
                         <span>Remaining weight</span>
                         <strong>100%</strong>
-                        <small>Across upcoming assessments</small>
+
+                        <small>
+                            Across upcoming assessments
+                        </small>
                     </article>
 
                     <article class="course-summary-card">
                         <span>Next due</span>
                         <strong>—</strong>
-                        <small>No upcoming assessment yet</small>
+
+                        <small>
+                            No upcoming assessment yet
+                        </small>
                     </article>
                 </section>
 
                 <section class="course-content-card">
+
                     <div class="course-section-heading">
                         <div>
                             <p class="eyebrow">COURSEWORK</p>
                             <h2>Assessments &amp; grades</h2>
                         </div>
-
-                        <button type="button" class="dark-button">
-                            ＋ Add assessment
-                        </button>
                     </div>
 
-                    <div class="course-empty-state">
-                        <span class="empty-state-icon">✦</span>
-                        <h2>No assessments added yet</h2>
+                    <form
+                        id="assessment-form"
+                        class="assessment-form"
+                        method="POST"
+                        action="{{ url_for(
+                            'add_assessment',
+                            course_id=course['id']
+                        ) }}"
+                    >
+                        <div class="assessment-form-heading">
+                            <div>
+                                <p class="eyebrow">
+                                    NEW ASSESSMENT
+                                </p>
 
-                        <p>
-                            Add assignments, labs, quizzes and exams to track
-                            their weights, due dates and grades.
-                        </p>
+                                <h3>Add coursework</h3>
+                            </div>
 
-                        <button type="button" class="dark-button">
-                            Add your first assessment
+                            <p>
+                                Leave the score empty if it has
+                                not been graded yet.
+                            </p>
+                        </div>
+
+                        <div class="assessment-form-grid">
+                            <label>
+                                Assessment name
+
+                                <input
+                                    type="text"
+                                    name="assessment_name"
+                                    placeholder="e.g. Midterm exam"
+                                    required
+                                >
+                            </label>
+
+                            <label>
+                                Weight %
+
+                                <input
+                                    type="number"
+                                    name="weight"
+                                    placeholder="25"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    required
+                                >
+                            </label>
+
+                            <label>
+                                Score %
+
+                                <input
+                                    type="number"
+                                    name="score"
+                                    placeholder="Not graded"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                >
+                            </label>
+
+                            <label>
+                                Due date
+
+                                <input
+                                    type="date"
+                                    name="due_date"
+                                    required
+                                >
+                            </label>
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="dark-button"
+                        >
+                            Save assessment
                         </button>
-                    </div>
+                    </form>
+
+                    {% if assessments %}
+
+                        <div class="assessment-list">
+                            <div class="assessment-list-header">
+                                <span>Assessment</span>
+                                <span>Due date</span>
+                                <span>Weight</span>
+                                <span>Score</span>
+                                <span>Actions</span>
+                            </div>
+
+                            {% for assessment in assessments %}
+
+                                <article class="assessment-row">
+                                    <div class="assessment-name">
+                                        <span
+                                            class="assessment-dot"
+                                        ></span>
+
+                                        <div>
+                                            <strong>
+                                                {{ assessment["name"] }}
+                                            </strong>
+
+                                            {% if assessment["score"] is not none %}
+                                                <small>Graded</small>
+                                            {% else %}
+                                                <small>Upcoming</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <time>
+                                        {% if assessment["due_date"] %}
+                                            {{ assessment["due_date"] }}
+                                        {% else %}
+                                            No due date
+                                        {% endif %}
+                                    </time>
+
+                                    <strong>
+                                        {{ assessment["weight"] }}%
+                                    </strong>
+
+                                    <strong class="assessment-score">
+                                        {% if assessment["score"] is not none %}
+                                            {{ assessment["score"] }}%
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </strong>
+
+                                    <div class="assessment-actions">
+                                        <a
+                                            class="edit-assessment-button"
+                                            href="{{ url_for(
+                                                'edit_assessment',
+                                                assessment_id=assessment['id']
+                                            ) }}"
+                                        >
+                                            Edit
+                                        </a>
+
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for(
+                                                'delete_assessment',
+                                                assessment_id=assessment['id']
+                                            ) }}"
+                                            onsubmit="return confirm(
+                                                'Are you sure you want to delete this assessment?'
+                                            );"
+                                        >
+                                            <button
+                                                type="submit"
+                                                class="delete-assessment-button"
+                                            >
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </article>
+
+                            {% endfor %}
+                        </div>
+
+                    {% else %}
+
+                        <div class="course-empty-state">
+                            <span class="empty-state-icon">
+                                ✦
+                            </span>
+
+                            <h2>No assessments added yet</h2>
+
+                            <p>
+                                Add assignments, labs, quizzes and
+                                exams to track their weights, due
+                                dates and grades.
+                            </p>
+
+                            <a
+                                class="dark-button"
+                                href="#assessment-form"
+                            >
+                                Add your first assessment
+                            </a>
+                        </div>
+
+                    {% endif %}
+
                 </section>
             </section>
         </main>

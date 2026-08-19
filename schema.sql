@@ -25,3 +25,14 @@ CREATE TABLE IF NOT EXISTS courses (
     FOREIGN KEY (semester_id)
         REFERENCES semesters(id)
 );
+CREATE TABLE IF NOT EXISTS assessments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    course_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    weight REAL NOT NULL,
+    score REAL,
+    due_date TEXT,
+
+    FOREIGN KEY (course_id)
+        REFERENCES courses(id)
+);

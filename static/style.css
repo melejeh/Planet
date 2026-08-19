@@ -1931,3 +1931,341 @@ form button:hover {
     font-weight: 400;
     letter-spacing: -1.5px;
 }
+.dark-button {
+    text-decoration: none;
+}
+
+.assessment-form {
+    margin-top: 28px;
+    padding: 26px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--paper);
+    scroll-margin-top: 30px;
+}
+
+.assessment-form-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 22px;
+}
+
+.assessment-form-heading h3 {
+    margin: 5px 0 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 26px;
+    font-weight: 400;
+}
+
+.assessment-form-heading > p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.assessment-form-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1.2fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.assessment-form label {
+    display: flex;
+    gap: 8px;
+    flex-direction: column;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.assessment-form input {
+    width: 100%;
+    padding: 13px 14px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: white;
+    color: var(--ink);
+    font: inherit;
+}
+
+.assessment-form input:focus {
+    outline: 2px solid rgba(143, 60, 91, 0.18);
+    border-color: var(--berry);
+}
+
+@media (max-width: 950px) {
+    .assessment-form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .assessment-form-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .assessment-form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.assessment-list {
+    margin-top: 28px;
+}
+
+.assessment-list-header,
+.assessment-row {
+    display: grid;
+    grid-template-columns:
+        minmax(240px, 2fr)
+        1fr
+        0.7fr
+        0.7fr
+        0.6fr;
+    gap: 22px;
+    align-items: center;
+}
+
+.assessment-list-header {
+    padding: 0 18px 12px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.assessment-row {
+    min-height: 82px;
+    padding: 16px 18px;
+    border-top: 1px solid var(--line);
+    color: var(--ink);
+    transition:
+        transform 0.2s ease,
+        background 0.2s ease;
+}
+
+.assessment-row:hover {
+    position: relative;
+    z-index: 1;
+    border-radius: 13px;
+    background: var(--paper);
+    transform: translateY(-2px);
+}
+
+.assessment-name {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+
+.assessment-name div {
+    display: flex;
+    gap: 4px;
+    flex-direction: column;
+}
+
+.assessment-name small {
+    color: var(--muted);
+}
+
+.assessment-dot {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--berry);
+}
+
+.assessment-row time {
+    color: var(--muted);
+}
+
+.assessment-score {
+    color: var(--berry);
+}
+
+@media (max-width: 760px) {
+    .assessment-list-header {
+        display: none;
+    }
+
+    .assessment-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .assessment-name {
+        grid-column: 1 / -1;
+    }
+}
+.delete-assessment-button {
+    padding: 8px 12px;
+    border: 1px solid #e4c7d1;
+    border-radius: 9px;
+    background: #fbf1f4;
+    color: var(--berry);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.delete-assessment-button:hover {
+    border-color: var(--berry);
+    background: var(--berry);
+    color: white;
+}
+
+.assessment-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.assessment-actions form {
+    margin: 0;
+}
+
+.edit-assessment-button,
+.secondary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.edit-assessment-button {
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: white;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.edit-assessment-button:hover {
+    border-color: var(--ink);
+}
+
+.edit-assessment-workspace {
+    width: min(900px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 60px 0;
+}
+
+.edit-assessment-card {
+    padding: 42px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: white;
+}
+
+.edit-assessment-card h1 {
+    margin: 8px 0 12px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 46px;
+    font-weight: 400;
+    color: var(--ink);
+}
+
+.edit-assessment-description {
+    margin: 0 0 30px;
+    color: var(--muted);
+}
+
+.edit-assessment-form,
+.edit-assessment-form label {
+    display: flex;
+    flex-direction: column;
+}
+
+.edit-assessment-form {
+    gap: 22px;
+}
+
+.edit-assessment-form label {
+    gap: 8px;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.edit-assessment-form input {
+    width: 100%;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: white;
+    color: var(--ink);
+    font: inherit;
+}
+
+.edit-assessment-form input:focus {
+    outline: 2px solid rgba(143, 60, 91, 0.18);
+    border-color: var(--berry);
+}
+
+.edit-assessment-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.edit-assessment-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.secondary-button {
+    padding: 12px 18px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+@media (max-width: 700px) {
+    .edit-assessment-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .edit-assessment-card {
+        padding: 28px 22px;
+    }
+}
+.assessment-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.assessment-actions form {
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.edit-assessment-button,
+.delete-assessment-button {
+    display: inline-flex;
+    width: auto;
+    height: 42px;
+    margin: 0;
+    padding: 0 14px;
+    align-items: center;
+    justify-content: center;
+
+    box-sizing: border-box;
+    border-radius: 9px;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+}
