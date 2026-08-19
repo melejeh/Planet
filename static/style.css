@@ -2269,3 +2269,7 @@ form button:hover {
     line-height: 1;
     text-decoration: none;
 }
+.course-summary-card .next-due-value {
+    font-size: 25px;
+    line-height: 1.15;
+}

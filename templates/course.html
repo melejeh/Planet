@@ -131,42 +131,80 @@
                 </header>
 
                 <section class="course-summary-grid">
-                    <article class="course-summary-card">
-                        <span>Current grade</span>
-                        <strong>—</strong>
 
-                        <small>
-                            Add graded assessments to calculate it
-                        </small>
-                    </article>
+    <article class="course-summary-card">
+        <span>Current grade</span>
 
-                    <article class="course-summary-card">
-                        <span>Completed weight</span>
-                        <strong>0%</strong>
+        <strong>
+            {% if current_grade is not none %}
+                {{ current_grade }}%
+            {% else %}
+                —
+            {% endif %}
+        </strong>
 
-                        <small>
-                            No assessments graded yet
-                        </small>
-                    </article>
+        <small>
+            {% if current_grade is not none %}
+                Based on completed assessments
+            {% else %}
+                Add graded assessments to calculate it
+            {% endif %}
+        </small>
+    </article>
 
-                    <article class="course-summary-card">
-                        <span>Remaining weight</span>
-                        <strong>100%</strong>
+    <article class="course-summary-card">
+        <span>Completed weight</span>
 
-                        <small>
-                            Across upcoming assessments
-                        </small>
-                    </article>
+        <strong>
+            {{ completed_weight }}%
+        </strong>
 
-                    <article class="course-summary-card">
-                        <span>Next due</span>
-                        <strong>—</strong>
+        <small>
+            {% if completed_weight > 0 %}
+                Course weight graded so far
+            {% else %}
+                No assessments graded yet
+            {% endif %}
+        </small>
+    </article>
 
-                        <small>
-                            No upcoming assessment yet
-                        </small>
-                    </article>
-                </section>
+    <article class="course-summary-card">
+        <span>Remaining weight</span>
+
+        <strong>
+            {{ remaining_weight }}%
+        </strong>
+
+        <small>
+            {% if remaining_weight > 0 %}
+                Still remaining in this course
+            {% else %}
+                All course assessments completed
+            {% endif %}
+        </small>
+    </article>
+
+    <article class="course-summary-card">
+        <span>Next due</span>
+
+        <strong class="next-due-value">
+            {% if next_due %}
+                {{ next_due | pretty_date }}
+            {% else %}
+                —
+            {% endif %}
+        </strong>
+
+        <small>
+            {% if next_due %}
+                Next upcoming assessment
+            {% else %}
+                No upcoming assessment yet
+            {% endif %}
+        </small>
+    </article>
+
+</section>
 
                 <section class="course-content-card">
 
@@ -293,7 +331,7 @@
 
                                     <time>
                                         {% if assessment["due_date"] %}
-                                            {{ assessment["due_date"] }}
+                                           {{ assessment["due_date"] | pretty_date }}
                                         {% else %}
                                             No due date
                                         {% endif %}
