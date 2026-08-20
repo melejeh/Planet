@@ -15,63 +15,8 @@
 <body class="dashboard-body">
     <div class="dashboard-layout">
 
-        <aside class="sidebar">
-            <div class="sidebar-logo">
-                <span class="logo-icon">P</span>
-                <span>Planet</span>
-            </div>
-
-
-            <nav class="sidebar-nav">
-                <a class="active" href="#">
-                    <span>⌂</span>
-                    Dashboard
-                </a>
-
-                <a href="/semester">
-                <span>◫</span>
-                 Courses &amp; Grades
-                </a>
-
-                <a href="#">
-                    <span>✦</span>
-                    Study Plan
-                </a>
-
-                <a href="#">
-                    <span>□</span>
-                    Calendar
-                </a>
-
-                <a href="#">
-                    <span>✓</span>
-                    To-Do
-                </a>
-
-                <a href="#">
-                    <span>◎</span>
-                    Goals
-                </a>
-
-                <a href="#">
-                    <span>♡</span>
-                    Gratitude
-                </a>
-            </nav>
-
-            <div class="sidebar-profile">
-                <div class="profile-circle">
-                    {{ name[0] }}
-                </div>
-
-                <div class="profile-details">
-                    <span class="profile-name">{{ name }}</span>
-                    <a class="sign-out-link" href="/logout">
-                        Sign out
-                    </a>
-                </div>
-            </div>
-        </aside>
+        {% set active_page = "dashboard" %}
+{% include "sidebar.html" %}
 
         <main class="dashboard-main">
             <header class="dashboard-topbar">
@@ -143,7 +88,7 @@
             <section class="dashboard-content">
                 <div class="dashboard-heading">
                     <div>
-                        <p class="eyebrow">YOUR DASHBOARD</p>
+                        <p class="eyebrow">{{ today_full }}</p>
 
                         <h1>
                             Welcome to your Planet, {{ name }}.
@@ -159,28 +104,24 @@
 
                 <section class="summary-grid">
                     <article class="summary-card">
-                        <span>Tasks due this week</span>
-                        <strong>6</strong>
-                        <small>2 completed</small>
-                    </article>
+    <span>Projected average</span>
 
-                    <article class="summary-card">
-                        <span>Planned study time</span>
-                        <strong>8.5h</strong>
-                        <small>3.5h remaining</small>
-                    </article>
+    <strong>
+        {% if projected_average is not none %}
+            {{ projected_average }}%
+        {% else %}
+            —
+        {% endif %}
+    </strong>
 
-                    <article class="summary-card">
-                        <span>Next assessment</span>
-                        <strong>8 days</strong>
-                        <small>Database Management</small>
-                    </article>
-
-                    <article class="summary-card">
-                        <span>Projected average</span>
-                        <strong>84%</strong>
-                        <small>Up 2% this term</small>
-                    </article>
+    <small>
+        {% if projected_average is not none %}
+            Across your graded courses
+        {% else %}
+            Add grades to calculate
+        {% endif %}
+    </small>
+</article>
                 </section>
                 <section class="goals-strip dashboard-card">
     <div class="section-heading">

@@ -19,6 +19,9 @@
 <body class="dashboard-body">
     <div class="dashboard-layout">
 
+        {% set active_page = "semester" %}
+        {% include "sidebar.html" %}
+        {#
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-logo">
@@ -87,6 +90,7 @@
                 </div>
             </div>
         </aside>
+        #}
 
         <!-- Main Semester Area -->
         <main class="dashboard-main">

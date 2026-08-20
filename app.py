@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import (
     Flask,
     render_template,
@@ -141,6 +141,23 @@ def dashboard():
     connection = sqlite3.connect("planet.db")
     connection.row_factory = sqlite3.Row
 
+    active_semester = None
+    courses = []
+    next_assessment = None
+    projected_average = None
+
+    if session.get("active_semester_id") is not None:
+        active_semester = connection.execute(
+            """
+            SELECT * FROM semesters
+            WHERE id = ? AND user_id = ?
+            """,
+            (
+                session["active_semester_id"],
+                session["user_id"]
+            )
+        ).fetchone()
+
     semesters = connection.execute(
         """
         SELECT * FROM semesters
@@ -150,15 +167,100 @@ def dashboard():
         (session["user_id"],)
     ).fetchall()
 
+    if active_semester is not None:
+        courses = connection.execute(
+            """
+            SELECT
+                courses.*,
+
+                ROUND(
+                    SUM(
+                        CASE
+                            WHEN assessments.score IS NOT NULL
+                            THEN assessments.score * assessments.weight
+                            ELSE 0
+                        END
+                    )
+                    /
+                    NULLIF(
+                        SUM(
+                            CASE
+                                WHEN assessments.score IS NOT NULL
+                                THEN assessments.weight
+                                ELSE 0
+                            END
+                        ),
+                        0
+                    ),
+                    1
+                ) AS current_grade,
+
+                MIN(
+                    CASE
+                        WHEN assessments.due_date >= DATE('now')
+                         AND assessments.score IS NULL
+                        THEN assessments.due_date
+                    END
+                ) AS next_due
+
+            FROM courses
+
+            LEFT JOIN assessments
+                ON assessments.course_id = courses.id
+
+            WHERE courses.semester_id = ?
+
+            GROUP BY courses.id
+            ORDER BY courses.name
+            """,
+            (active_semester["id"],)
+        ).fetchall()
+
+        graded_course_values = [
+            course["current_grade"]
+            for course in courses
+            if course["current_grade"] is not None
+        ]
+
+        if graded_course_values:
+            projected_average = round(
+                sum(graded_course_values)
+                / len(graded_course_values),
+                1
+            )
+
+        next_assessment = connection.execute(
+            """
+            SELECT
+                assessments.*,
+                courses.name AS course_name
+            FROM assessments
+
+            JOIN courses
+                ON courses.id = assessments.course_id
+
+            WHERE courses.semester_id = ?
+              AND assessments.due_date >= DATE('now')
+              AND assessments.score IS NULL
+
+            ORDER BY assessments.due_date
+            LIMIT 1
+            """,
+            (active_semester["id"],)
+        ).fetchone()
+
     connection.close()
 
     return render_template(
         "dashboard.html",
         name=session["first_name"],
-        semesters=semesters
+        semesters=semesters,
+        active_semester=active_semester,
+        courses=courses,
+        projected_average=projected_average,
+        next_assessment=next_assessment,
+        today_full=datetime.now().strftime("%A, %B %-d, %Y")
     )
-
-
 
 @app.route("/logout")
 def logout():
@@ -245,6 +347,7 @@ def semester():
         MIN(
             CASE
                 WHEN assessments.due_date >= DATE('now')
+                 AND assessments.score IS NULL
                 THEN assessments.due_date
             END
         ) AS next_due
@@ -640,85 +743,135 @@ def course_details(course_id):
         WHERE course_id = ?
         ORDER BY due_date
         """,
-        (
-            course_id,
-        )
+        (course_id,)
     ).fetchall()
 
     connection.close()
 
-    completed_weight = 0
-    weighted_points = 0
+    graded_weight = 0
+    earned_points = 0
     next_due = None
+    ungraded_assessments = []
 
     for assessment in assessments:
+        weight = float(assessment["weight"])
+
         if assessment["score"] is not None:
-            completed_weight += assessment["weight"]
+            score = float(assessment["score"])
+            graded_weight += weight
+            earned_points += score * weight / 100
+        else:
+            # Only assessments without a score belong in the planner.
+            ungraded_assessments.append(assessment)
 
-            weighted_points += (
-                assessment["score"]
-                * assessment["weight"]
-            )
-
-        elif (
-            next_due is None
+        if (
+            assessment["score"] is None
             and assessment["due_date"]
+            and assessment["due_date"]
+            >= datetime.now().date().isoformat()
         ):
-            next_due = assessment["due_date"]
+            if (
+                next_due is None
+                or assessment["due_date"] < next_due
+            ):
+                next_due = assessment["due_date"]
 
-    if completed_weight > 0:
-        current_grade = (
-            weighted_points / completed_weight
+    completed_weight = round(graded_weight, 1)
+    remaining_weight = round(
+        max(0, 100 - completed_weight),
+        1
+    )
+
+    if graded_weight > 0:
+        current_grade = round(
+            earned_points / graded_weight * 100,
+            1
         )
-
-        current_grade = round(current_grade, 1)
-
     else:
         current_grade = None
 
-    remaining_weight = 100 - completed_weight
-
     target_grade = None
     required_grade = None
+    planned_scores = {}
+    assessment_targets = []
 
     if request.method == "POST":
         target_grade = float(
             request.form["target_grade"]
         )
 
-        if remaining_weight > 0:
-            required_grade = (
-                (target_grade * 100)
-                - weighted_points
-            ) / remaining_weight
+        # Read predicted grades only for ungraded assessments.
+        for assessment in ungraded_assessments:
+            field_name = (
+                f"expected_score_{assessment['id']}"
+            )
 
+            entered_score = request.form.get(
+                field_name,
+                ""
+            ).strip()
+
+            if entered_score:
+                planned_scores[assessment["id"]] = float(
+                    entered_score
+                )
+
+        planned_points = earned_points
+        unplanned_weight = 0
+
+        for assessment in ungraded_assessments:
+            assessment_id = assessment["id"]
+            weight = float(assessment["weight"])
+
+            if assessment_id in planned_scores:
+                planned_points += (
+                    planned_scores[assessment_id]
+                    * weight
+                    / 100
+                )
+            else:
+                unplanned_weight += weight
+
+        if unplanned_weight > 0:
             required_grade = round(
-                required_grade,
+                (
+                    target_grade
+                    - planned_points
+                )
+                * 100
+                / unplanned_weight,
                 1
             )
 
-    completed_weight = round(
-        completed_weight,
-        1
-    )
-
-    remaining_weight = round(
-        remaining_weight,
-        1
-    )
+            # Suggest a score only for assessments that are still
+            # ungraded and do not already have a planned score.
+            for assessment in ungraded_assessments:
+                if assessment["id"] not in planned_scores:
+                    assessment_targets.append({
+                        "name": assessment["name"],
+                        "required_score": required_grade
+                    })
+        elif planned_points >= target_grade:
+            required_grade = 0
+        else:
+            required_grade = None
 
     return render_template(
         "course.html",
         name=session["first_name"],
         course=course,
         assessments=assessments,
+        ungraded_assessments=ungraded_assessments,
+        planned_scores=planned_scores,
         current_grade=current_grade,
         completed_weight=completed_weight,
         remaining_weight=remaining_weight,
         next_due=next_due,
         target_grade=target_grade,
-        required_grade=required_grade
+        required_grade=required_grade,
+        assessment_targets=assessment_targets
     )
+
 @app.template_filter("pretty_date")
 def pretty_date(value):
     if not value:
@@ -801,6 +954,241 @@ def edit_course(course_id):
         course=course,
         name=session["first_name"]
     )
+
+
+@app.route("/calendar", methods=["GET", "POST"])
+def calendar():
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            event_date TEXT NOT NULL,
+            start_time TEXT NOT NULL,
+            end_time TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'personal',
+            notes TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    connection.commit()
+
+    if request.method == "POST":
+        title = request.form["title"].strip()
+        event_date = request.form["event_date"]
+        start_time = request.form["start_time"]
+        end_time = request.form["end_time"]
+        category = request.form["category"]
+        notes = request.form.get("notes", "").strip()
+        repeat_type = request.form.get("repeat_type", "none")
+        repeat_until = request.form.get("repeat_until", "")
+        repeat_days = {
+            int(day)
+            for day in request.form.getlist("repeat_days")
+        }
+
+        if title and end_time > start_time:
+            first_date = datetime.strptime(
+                event_date,
+                "%Y-%m-%d"
+            ).date()
+            event_dates = [first_date]
+
+            if repeat_type != "none" and repeat_until:
+                final_date = datetime.strptime(
+                    repeat_until,
+                    "%Y-%m-%d"
+                ).date()
+
+                # Keep one repeating series within one year.
+                final_date = min(
+                    final_date,
+                    first_date + timedelta(days=365)
+                )
+
+                if final_date >= first_date:
+                    event_dates = []
+                    current_date = first_date
+
+                    while current_date <= final_date:
+                        should_add = False
+
+                        if repeat_type == "daily":
+                            should_add = True
+                        elif repeat_type == "weekly":
+                            should_add = (
+                                current_date.weekday()
+                                == first_date.weekday()
+                            )
+                        elif repeat_type == "custom":
+                            should_add = (
+                                current_date.weekday()
+                                in repeat_days
+                            )
+
+                        if should_add:
+                            event_dates.append(current_date)
+
+                        current_date += timedelta(days=1)
+
+                    if not event_dates:
+                        event_dates = [first_date]
+
+            connection.executemany(
+                """
+                INSERT INTO events (
+                    user_id,
+                    title,
+                    event_date,
+                    start_time,
+                    end_time,
+                    category,
+                    notes
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        session["user_id"],
+                        title,
+                        repeated_date.isoformat(),
+                        start_time,
+                        end_time,
+                        category,
+                        notes
+                    )
+                    for repeated_date in event_dates
+                ]
+            )
+            connection.commit()
+            connection.close()
+
+            return redirect(
+                url_for("calendar", week=event_date)
+            )
+
+    requested_date = request.args.get("week")
+
+    try:
+        selected_date = datetime.strptime(
+            requested_date,
+            "%Y-%m-%d"
+        ).date() if requested_date else datetime.now().date()
+    except ValueError:
+        selected_date = datetime.now().date()
+
+    # Planet's weekly calendar runs Sunday through Saturday.
+    days_since_sunday = (selected_date.weekday() + 1) % 7
+    week_start = selected_date - timedelta(days=days_since_sunday)
+    week_end = week_start + timedelta(days=6)
+
+    events = connection.execute(
+        """
+        SELECT * FROM events
+        WHERE user_id = ?
+          AND event_date BETWEEN ? AND ?
+        ORDER BY event_date, start_time
+        """,
+        (
+            session["user_id"],
+            week_start.isoformat(),
+            week_end.isoformat()
+        )
+    ).fetchall()
+
+    days = []
+
+    for day_offset in range(7):
+        day_date = week_start + timedelta(days=day_offset)
+
+        day_events = []
+
+        for event in events:
+            if event["event_date"] != day_date.isoformat():
+                continue
+
+            event_data = dict(event)
+            start_hour, start_minute = map(
+                int,
+                event["start_time"].split(":")
+            )
+            end_hour, end_minute = map(
+                int,
+                event["end_time"].split(":")
+            )
+
+            start_total = start_hour * 60 + start_minute
+            end_total = end_hour * 60 + end_minute
+
+            # The visible calendar runs from 8:00 AM to 9:00 PM.
+            calendar_start = 8 * 60
+            pixels_per_hour = 64
+
+            event_data["top"] = max(
+                0,
+                (start_total - calendar_start)
+                / 60
+                * pixels_per_hour
+            )
+            event_data["height"] = max(
+                42,
+                (end_total - start_total)
+                / 60
+                * pixels_per_hour
+            )
+            event_data["display_time"] = datetime.strptime(
+                event["start_time"],
+                "%H:%M"
+            ).strftime("%-I:%M %p")
+
+            day_events.append(event_data)
+
+        days.append({
+            "date": day_date,
+            "events": day_events
+        })
+
+    connection.close()
+
+    return render_template(
+        "calendar.html",
+        name=session["first_name"],
+        days=days,
+        today=datetime.now().date(),
+        week_start=week_start,
+        week_end=week_end,
+        previous_week=(week_start - timedelta(days=7)).isoformat(),
+        next_week=(week_start + timedelta(days=7)).isoformat()
+    )
+
+
+@app.route("/calendar/events/<int:event_id>/delete", methods=["POST"])
+def delete_event(event_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+
+    connection.execute(
+        """
+        DELETE FROM events
+        WHERE id = ? AND user_id = ?
+        """,
+        (event_id, session["user_id"])
+    )
+
+    connection.commit()
+    connection.close()
+
+    return redirect(request.referrer or url_for("calendar"))
 
 
 

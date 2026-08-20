@@ -143,7 +143,7 @@
                 <section class="course-summary-grid">
 
     <article class="course-summary-card">
-        <span>Current grade</span>
+        <span>Current coursework average</span>
 
         <strong>
             {% if current_grade is not none %}
@@ -179,7 +179,7 @@
     </article>
 
     <article class="course-summary-card">
-        <span>Remaining weight</span>
+        <span>Unfinished course weight</span>
 
         <strong>
             {{ remaining_weight }}%
@@ -425,12 +425,12 @@
                         <div>
                             <p class="eyebrow">GRADE PLANNER</p>
 
-                            <h2>Final grade calculator</h2>
+                            <h2>Overall course grade calculator</h2>
 
                             <p>
-                                Choose your desired final grade to see
-                                what average you need on your remaining
-                                coursework.
+                                Choose the overall course grade you want
+                                to finish with, then plan the marks for
+                                your remaining assessments.
                             </p>
                         </div>
                     </div>
@@ -445,7 +445,7 @@
     id="final-grade-calculator"
                     >
                         <label>
-                            Current grade
+                            Current coursework average
 
                             <input
                                 type="text"
@@ -455,7 +455,7 @@
                         </label>
 
                         <label>
-                            Remaining weight
+                            Unfinished course weight
 
                             <input
                                 type="text"
@@ -465,7 +465,7 @@
                         </label>
 
                         <label>
-                            Target final grade
+                            Target overall course grade
 
                             <input
                                 type="number"
@@ -478,13 +478,42 @@
                                 required
                             >
                         </label>
+                       {% for assessment in ungraded_assessments %}
+    <label>
+        {{ assessment["name"] }} — expected mark
+
+        <input
+            type="number"
+            name="expected_score_{{ assessment['id'] }}"
+            value="{{ planned_scores.get(assessment['id'], '') }}"
+            placeholder="e.g. 80"
+            min="0"
+            max="100"
+            step="0.1"
+        >
+    </label>
+{% endfor %}
+
 
                         <button type="submit" class="dark-button">
                             Calculate
                         </button>
                     </form>
 
-                    {% if required_grade is not none %}
+                    {% if request.method == "POST" and required_grade is none %}
+                        <div class="grade-calculation-result">
+                            <p class="eyebrow">RESULT</p>
+
+                            <h3>Your planned scores do not reach that target.</h3>
+
+                            <p>
+                                Every remaining assessment already has a
+                                planned score, so there is no unplanned
+                                coursework left to calculate.
+                            </p>
+                        </div>
+
+                    {% elif required_grade is not none %}
                         <div class="grade-calculation-result">
                             {% if required_grade > 100 %}
                                 <p class="eyebrow">RESULT</p>
@@ -522,13 +551,28 @@
                                 <p>
                                     You need an average of
                                     {{ required_grade }}% across your
-                                    remaining {{ remaining_weight }}% of
-                                    coursework to finish with
+                                    remaining unplanned coursework to finish
+                                    the course with an overall grade of
                                     {{ target_grade }}%.
                                 </p>
                             {% endif %}
                         </div>
                     {% endif %}
+
+                    {% if assessment_targets %}
+                        <div class="assessment-targets">
+                            <p class="eyebrow">SUGGESTED SCORES</p>
+
+                            {% for assessment in assessment_targets %}
+                                <p>
+                                    Aim for
+                                    <strong>{{ assessment["required_score"] }}%</strong>
+                                    on {{ assessment["name"] }}.
+                                </p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </section>
                 </section>
             </section>
         </main>

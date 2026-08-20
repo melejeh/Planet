@@ -1,0 +1,76 @@
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <span class="logo-icon">P</span>
+        <span>Planet</span>
+    </div>
+
+    <nav class="sidebar-nav">
+        <a
+            class="{% if active_page == 'dashboard' %}active{% endif %}"
+            href="{{ url_for('dashboard') }}"
+        >
+            <span>⌂</span>
+            Dashboard
+        </a>
+
+        <a
+            class="{% if active_page == 'semester' %}active{% endif %}"
+            href="{{ url_for('semester') }}"
+        >
+            <span>▤</span>
+            Courses &amp; Grades
+        </a>
+
+        <a href="#">
+            <span>✦</span>
+            Study Plan
+        </a>
+
+        <a
+    class="{% if active_page == 'calendar' %}active{% endif %}"
+    href="{{ url_for('calendar') }}"
+>
+    <span>□</span>
+    Calendar
+</a>
+
+        <a href="#">
+            <span>✓</span>
+            To-Do
+        </a>
+
+        <a href="#">
+            <span>◎</span>
+            Goals
+        </a>
+
+        <a href="#">
+            <span>♡</span>
+            Gratitude
+        </a>
+
+        <a href="#">
+            <span>◉</span>
+            Focus
+        </a>
+
+        <a href="#">
+            <span>⚙</span>
+            Settings
+        </a>
+    </nav>
+
+    <div class="sidebar-profile">
+        <div class="profile-circle">
+            {{ name[0] }}
+        </div>
+
+        <div class="profile-details">
+            <span class="profile-name">{{ name }}</span>
+
+            <a class="sign-out-link" href="{{ url_for('logout') }}">
+                Sign out
+            </a>
+        </div>
+    </div>
+</aside>
