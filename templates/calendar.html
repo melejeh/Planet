@@ -22,13 +22,7 @@
                     placeholder="Search your planet..."
                 >
 
-                <button
-                    type="button"
-                    class="dark-button"
-                    onclick="toggleEventForm()"
-                >
-                    ＋ Add event
-                </button>
+            
             </header>
 
             <section class="calendar-workspace">
@@ -181,7 +175,7 @@
                         <h2>
                             {{ week_start.strftime("%B %-d") }}–{{ week_end.strftime("%B %-d, %Y") }}
                         </h2>
-                        <p>Sunday–Saturday · 8 AM–9 PM</p>
+                        <p>Sunday–Saturday · 6 AM–12 midnight</p>
                     </div>
 
                     <div class="calendar-navigation-actions">
@@ -212,12 +206,17 @@
                     {% endfor %}
 
                     <div class="calendar-time-rail">
-                        {% for hour in [8, 10, 12, 14, 16, 18, 20] %}
-                            <span style="top: {{ (hour - 8) * 64 }}px;">
-                                {{ hour if hour <= 12 else hour - 12 }}
-                                {% if hour < 12 %}AM{% else %}PM{% endif %}
-                            </span>
-                        {% endfor %}
+                       {% for hour in [6, 8, 10, 12, 14, 16, 18, 20, 22] %}
+    <span style="top: {{ (hour - 6) * 42 }}px;">
+        {% if hour == 12 %}
+            12 PM
+        {% elif hour < 12 %}
+            {{ hour }} AM
+        {% else %}
+            {{ hour - 12 }} PM
+        {% endif %}
+    </span>
+{% endfor %}
                     </div>
 
                     {% for day in days %}
@@ -312,18 +311,19 @@
             const clickedPixels = clickEvent.clientY - columnBounds.top;
 
             // Each hour is 64 pixels. Snap the selected time to 30 minutes.
-            const minutesAfterEight = Math.round(
-                clickedPixels / 32
-            ) * 30;
+            const minutesAfterSix = Math.round(
+    clickedPixels / 21
+) * 30;
 
-            const startMinutes = Math.min(
-                20 * 60 + 30,
-                8 * 60 + Math.max(0, minutesAfterEight)
-            );
-            const endMinutes = Math.min(
-                21 * 60,
-                startMinutes + 60
-            );
+const startMinutes = Math.min(
+    23 * 60,
+    6 * 60 + Math.max(0, minutesAfterSix)
+);
+
+const endMinutes = Math.min(
+    23 * 60 + 59,
+    startMinutes + 60
+);
 
             document.getElementById("event-date").value =
                 dayColumn.dataset.date;

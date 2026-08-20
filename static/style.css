@@ -861,6 +861,140 @@ form button:hover {
     cursor: pointer;
 }
 
+/* =====================================
+   Dynamic Dashboard Data
+===================================== */
+
+.dashboard-summary-grid {
+    margin-top: 16px;
+}
+
+.dark-action-link {
+    flex: 0 0 auto;
+    padding: 11px 15px;
+    border-radius: 10px;
+    background-color: var(--ink);
+    color: var(--white);
+    font-size: 12px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.dashboard-placeholder-card>p {
+    margin: -4px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.text-button {
+    text-decoration: none;
+}
+
+.schedule-colour.class,
+.schedule-colour.study {
+    background-color: var(--berry);
+}
+
+.schedule-colour.meeting {
+    background-color: var(--gold);
+}
+
+.schedule-colour.personal {
+    background-color: #8c78b7;
+}
+
+.dashboard-empty-state {
+    padding: 34px 10px 18px;
+    text-align: center;
+}
+
+.dashboard-empty-state strong {
+    font-family: Georgia, serif;
+    font-size: 21px;
+    font-weight: normal;
+}
+
+.dashboard-empty-state p {
+    margin: 8px 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.dashboard-empty-state a {
+    color: var(--berry);
+    font-size: 12px;
+    text-decoration: none;
+}
+
+.recommendation-placeholder button:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+}
+
+.upcoming-deadlines-card {
+    margin-top: 16px;
+}
+
+.deadline-list {
+    display: grid;
+}
+
+.deadline-item {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.deadline-item:last-child {
+    border-bottom: 0;
+}
+
+.deadline-item:hover .deadline-copy>strong {
+    color: var(--berry);
+}
+
+.deadline-date {
+    display: grid;
+    place-items: center;
+    min-height: 48px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+
+.deadline-date small {
+    color: var(--berry);
+    font-size: 9px;
+}
+
+.deadline-date strong {
+    font-family: Georgia, serif;
+    font-size: 18px;
+}
+
+.deadline-copy>strong,
+.deadline-copy>small {
+    display: block;
+}
+
+.deadline-copy>small {
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+.deadline-weight {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.dashboard-empty-state.compact {
+    padding: 20px 8px 8px;
+}
+
 
 /* =====================================
    Responsive Dashboard Sections
@@ -871,6 +1005,16 @@ form button:hover {
     .goal-grid,
     .dashboard-detail-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .deadline-item {
+        grid-template-columns: 48px 1fr;
+    }
+
+    .deadline-weight {
+        grid-column: 2;
     }
 }
 
@@ -3301,4 +3445,668 @@ form button:hover {
     .assessment-form-heading {
         flex-direction: column
     }
+}
+/* Compact full-day calendar: 24 hours × 32px */
+.demo-calendar-grid {
+    grid-template-rows: 50px 768px;
+}
+
+.calendar-time-rail,
+.demo-calendar-day {
+    height: 768px;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 31px,
+        var(--line) 32px
+    );
+}
+/* Compact calendar: 6 AM–12 midnight */
+.demo-calendar-grid {
+    grid-template-rows: 50px 756px;
+}
+
+.calendar-time-rail,
+.demo-calendar-day {
+    height: 756px;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 41px,
+        var(--line) 42px
+    );
+}
+/* =====================================
+   To-Do Page
+===================================== */
+
+.todo-workspace {
+    width: min(1200px, 92%);
+    margin: auto;
+    padding: 46px 0 75px;
+}
+
+.todo-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 30px;
+    margin-bottom: 28px;
+}
+
+.todo-heading h1 {
+    margin: 5px 0 9px;
+    font-family: Georgia, serif;
+    font-size: 46px;
+    font-weight: normal;
+}
+
+.todo-heading > div > p:not(.eyebrow) {
+    margin: 0;
+    color: var(--muted);
+}
+
+.todo-heading > button,
+.task-form-panel form > button,
+.todo-empty-state button {
+    padding: 12px 17px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--ink);
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+
+/* =====================================
+   Add Task Form
+===================================== */
+
+.task-form-panel {
+    display: none;
+    margin-bottom: 18px;
+    padding: 25px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--white);
+}
+
+.task-form-panel.is-open {
+    display: block;
+}
+
+.task-form-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 22px;
+}
+
+.task-form-heading h2 {
+    margin: 5px 0 0;
+    font-family: Georgia, serif;
+    font-size: 27px;
+    font-weight: normal;
+}
+
+.task-form-heading > button {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.task-form-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    gap: 15px;
+}
+
+.task-form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.task-title-field {
+    grid-column: span 2;
+}
+
+.task-form-grid input,
+.task-form-grid select {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 13px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: white;
+    color: var(--ink);
+    font: inherit;
+    box-sizing: border-box;
+}
+
+.task-form-grid input:focus,
+.task-form-grid select:focus {
+    outline: 2px solid rgba(143, 60, 91, 0.16);
+    border-color: var(--berry);
+}
+
+.task-form-panel form > button {
+    width: 100%;
+    margin-top: 18px;
+}
+
+
+/* =====================================
+   Task List
+===================================== */
+
+.todo-list-card {
+    padding: 25px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--white);
+}
+
+.todo-list-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+}
+
+.todo-list-heading h2 {
+    margin: 5px 0 0;
+    font-family: Georgia, serif;
+    font-size: 27px;
+    font-weight: normal;
+}
+
+.todo-list-heading > span {
+    padding: 7px 11px;
+    border-radius: 100px;
+    background: #f3eee5;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.todo-item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 15px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.todo-item:last-child {
+    border-bottom: 0;
+}
+
+.task-check-button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 2px solid var(--berry);
+    border-radius: 50%;
+    background: white;
+    color: white;
+    cursor: pointer;
+}
+
+.todo-item.completed .task-check-button {
+    background: var(--berry);
+}
+
+.todo-item-copy strong {
+    font-size: 15px;
+}
+
+.todo-item-copy p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.todo-item-details {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.todo-item-details time {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.priority-badge {
+    padding: 6px 9px;
+    border-radius: 100px;
+    font-size: 9px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.priority-badge.normal {
+    background: #edf3ec;
+    color: #49604e;
+}
+
+.priority-badge.medium {
+    background: #fbf1d9;
+    color: #8a6725;
+}
+
+.priority-badge.high {
+    background: #f8e7ec;
+    color: var(--berry);
+}
+
+.todo-item.completed {
+    opacity: 0.58;
+}
+
+.todo-item.completed .todo-item-copy strong {
+    text-decoration: line-through;
+}
+
+
+/* =====================================
+   Empty To-Do State
+===================================== */
+
+.todo-empty-state {
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.todo-empty-state > span {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    background: #f5e9ee;
+    color: var(--berry);
+    font-size: 22px;
+}
+
+.todo-empty-state h2 {
+    margin: 0;
+    font-family: Georgia, serif;
+    font-size: 26px;
+    font-weight: normal;
+}
+
+.todo-empty-state p {
+    margin: 9px 0 18px;
+    color: var(--muted);
+}
+
+
+/* =====================================
+   Responsive To-Do Page
+===================================== */
+
+@media (max-width: 950px) {
+    .task-form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .task-title-field {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 650px) {
+    .todo-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .task-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .task-title-field {
+        grid-column: span 1;
+    }
+
+    .todo-item {
+        grid-template-columns: 36px 1fr;
+    }
+
+    .todo-item-details {
+        grid-column: 2;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
+.task-actions {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.task-actions form {
+    margin: 0;
+}
+
+.task-delete-button,
+.task-edit-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 10px;
+    font-weight: bold;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.task-delete-button:hover {
+    color: #a53636;
+}
+
+.task-edit-link:hover {
+    color: var(--berry);
+}
+/* =====================================
+   Edit Task Page
+===================================== */
+
+.edit-task-workspace {
+    width: min(900px, 92%);
+    margin: auto;
+    padding: 46px 0 75px;
+}
+
+.edit-task-workspace .back-link {
+    color: var(--berry);
+    font-size: 12px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.edit-task-heading {
+    margin: 35px 0 25px;
+}
+
+.edit-task-heading h1 {
+    margin: 6px 0 9px;
+    font-family: Georgia, serif;
+    font-size: 43px;
+    font-weight: normal;
+}
+
+.edit-task-heading > p:not(.eyebrow) {
+    margin: 0;
+    color: var(--muted);
+}
+
+.edit-task-card {
+    padding: 25px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--white);
+}
+
+.edit-task-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.edit-task-actions a,
+.edit-task-actions button {
+    padding: 12px 17px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.edit-task-actions a {
+    border: 1px solid var(--line);
+    color: var(--ink);
+}
+
+.edit-task-actions button {
+    border: 0;
+    background: var(--ink);
+    color: white;
+}
+
+/* Align Edit and Delete task actions */
+.todo-item-details {
+    align-items: center;
+    white-space: nowrap;
+}
+
+.task-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.task-actions form {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
+
+.task-edit-link,
+.task-delete-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    margin: 0;
+    padding: 0 3px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    appearance: none;
+}
+
+.task-edit-link:hover {
+    color: var(--berry);
+}
+
+.task-delete-button:hover {
+    color: #a53636;
+}
+.calendar-page-heading h1 {
+    margin: 6px 0 9px;
+    font-size: 43px;
+    line-height: 1.1;
+}
+/* =====================================
+   Dashboard To-Do Card
+===================================== */
+
+.dashboard-todo-card {
+    min-width: 0;
+}
+
+.dashboard-todo-card .section-heading {
+    align-items: flex-end;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+}
+
+.dashboard-todo-card .section-heading .eyebrow {
+    margin-bottom: 6px;
+}
+
+.dashboard-task-list {
+    display: grid;
+}
+
+.dashboard-task-item {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.dashboard-task-item:last-child {
+    border-bottom: 0;
+}
+
+.dashboard-task-item form {
+    margin: 0;
+}
+
+.dashboard-task-check {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 2px solid var(--berry);
+    border-radius: 50%;
+    background: white;
+    cursor: pointer;
+}
+
+.dashboard-task-item strong {
+    display: block;
+    overflow: hidden;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-task-item p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.dashboard-task-date {
+    display: flex;
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dashboard-task-date time {
+    color: var(--muted);
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.dashboard-task-date .priority-badge {
+    font-size: 8px;
+}
+/* =====================================
+   To-Do Filters
+===================================== */
+
+.todo-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.todo-filters a {
+    padding: 9px 14px;
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    background: var(--white);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.todo-filters a:hover {
+    border-color: var(--berry);
+    color: var(--berry);
+}
+
+.todo-filters a.active {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: white;
+}
+.todo-item-details time.overdue {
+    color: #a53636;
+    font-weight: bold;
+}
+.todo-search-form {
+    width: min(520px, 45vw);
+    margin: 0;
+}
+
+.todo-search-form input[type="search"] {
+    width: 100%;
+}
+.dashboard-task-date time.overdue {
+    color: #a53636;
+    font-weight: bold;
+}
+.todo-filters a {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.todo-filters a span {
+    display: grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 100px;
+    background: #eee9df;
+    color: var(--muted);
+    font-size: 9px;
+}
+
+.todo-filters a.active span {
+    background: rgba(255, 255, 255, 0.18);
+    color: white;
+}
+.todo-filters a.overdue-filter.has-overdue:not(.active) {
+    border-color: #d7a3a3;
+    color: #a53636;
+}
+
+.todo-filters a.overdue-filter.has-overdue:not(.active) span {
+    background: #f8e7e7;
+    color: #a53636;
+}
+
+.todo-filters a.overdue-filter.active {
+    border-color: #a53636;
+    background: #a53636;
+    color: white;
 }

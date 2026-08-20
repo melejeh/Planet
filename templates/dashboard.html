@@ -3,275 +3,235 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', filename='style.css') }}"
-    >
-
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <title>Dashboard | Planet</title>
 </head>
-
 <body class="dashboard-body">
     <div class="dashboard-layout">
-
         {% set active_page = "dashboard" %}
-{% include "sidebar.html" %}
+        {% include "sidebar.html" %}
 
         <main class="dashboard-main">
             <header class="dashboard-topbar">
-    <div class="dashboard-topbar-left">
-
-        {% if semesters %}
-            <form
-                class="semester-switcher"
-                method="POST"
-            >
-                <label for="dashboard-semester">
-                    Semester
-                </label>
-
-                <select
-                    id="dashboard-semester"
-                    onchange="
-                        if (this.value) {
-                            this.form.action = this.value;
-                            this.form.submit();
-                        }
-                    "
-                >
-                    <option
-                        value=""
-                        disabled
-                        {% if not session.get("active_semester_id") %}
-                            selected
-                        {% endif %}
-                    >
-                        Choose semester
-                    </option>
-
-                    {% for semester in semesters %}
-                        <option
-                            value="{{ url_for(
-                                'select_semester',
-                                semester_id=semester['id']
-                            ) }}"
-                            {% if semester["id"] == session.get("active_semester_id") %}
-                                selected
-                            {% endif %}
-                        >
-                            {{ semester["name"] }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </form>
-        {% else %}
-            <a
-                class="create-semester-link"
-                href="/semester"
-            >
-                ＋ Create semester
-            </a>
-        {% endif %}
-
-        <input
-            type="search"
-            placeholder="Search your planet..."
-        >
-    </div>
-
-    <button type="button">
-        ＋ Add new
-    </button>
-</header>
+                <div class="dashboard-topbar-left">
+                    {% if semesters %}
+                        <form class="semester-switcher" method="POST">
+                            <label for="dashboard-semester">Semester</label>
+                            <select id="dashboard-semester" onchange="if (this.value) { this.form.action = this.value; this.form.submit(); }">
+                                <option value="" disabled {% if not session.get("active_semester_id") %}selected{% endif %}>Choose semester</option>
+                                {% for semester in semesters %}
+                                    <option value="{{ url_for('select_semester', semester_id=semester['id']) }}" {% if semester["id"] == session.get("active_semester_id") %}selected{% endif %}>
+                                        {{ semester["name"] }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    {% else %}
+                        <a class="create-semester-link" href="{{ url_for('semester') }}">＋ Create semester</a>
+                    {% endif %}
+                    <input type="search" placeholder="Search your planet...">
+                </div>
+                <button type="button">＋ Add new</button>
+            </header>
 
             <section class="dashboard-content">
                 <div class="dashboard-heading">
                     <div>
                         <p class="eyebrow">{{ today_full }}</p>
-
-                        <h1>
-                            Welcome to your Planet, {{ name }}.
-                        </h1>
-
-                        <p>
-                            Your classes, deadlines and study plan for today.
-                        </p>
+                        <h1>Welcome to your Planet, {{ name }}.</h1>
+                        <p>Your classes, deadlines and study plan for today.</p>
                     </div>
-
                     <button type="button">View study plan</button>
                 </div>
 
-                <section class="summary-grid">
+                {% if next_assessment %}
+                    <section class="midterm-reminder">
+                        <div>
+                            <span class="midterm-badge">
+                                {% if next_assessment_days == 0 %}
+                                    DUE TODAY
+                                {% elif next_assessment_days == 1 %}
+                                    NEXT ASSESSMENT IN 1 DAY
+                                {% else %}
+                                    NEXT ASSESSMENT IN {{ next_assessment_days }} DAYS
+                                {% endif %}
+                            </span>
+                            <h2>{{ next_assessment["name"] }}</h2>
+                            <p>
+                                {{ next_assessment["pretty_due"] }} ·
+                                {{ next_assessment["weight"] }}% of {{ next_assessment["course_name"] }}
+                            </p>
+                        </div>
+                        <a class="dark-action-link" href="{{ url_for('course_details', course_id=next_assessment['course_id']) }}">View course →</a>
+                    </section>
+                {% endif %}
+
+                <section class="summary-grid dashboard-summary-grid">
                     <article class="summary-card">
-    <span>Projected average</span>
-
-    <strong>
-        {% if projected_average is not none %}
-            {{ projected_average }}%
-        {% else %}
-            —
-        {% endif %}
-    </strong>
-
-    <small>
-        {% if projected_average is not none %}
-            Across your graded courses
-        {% else %}
-            Add grades to calculate
-        {% endif %}
-    </small>
-</article>
+                        <span>Events today</span>
+                        <strong>{{ today_events|length }}</strong>
+                        <small>On your calendar</small>
+                    </article>
+                    <article class="summary-card">
+                        <span>Upcoming assessments</span>
+                        <strong>{{ upcoming_assessment_count }}</strong>
+                        <small>Still awaiting a grade</small>
+                    </article>
+                    <article class="summary-card">
+                        <span>Next assessment</span>
+                        <strong>{% if next_assessment_days is not none %}{{ next_assessment_days }}{% else %}—{% endif %}</strong>
+                        <small>{% if next_assessment %}{% if next_assessment_days == 1 %}day away{% else %}days away{% endif %} · {{ next_assessment["name"] }}{% else %}Nothing upcoming{% endif %}</small>
+                    </article>
+                    <article class="summary-card">
+                        <span>Projected average</span>
+                        <strong>{% if projected_average is not none %}{{ projected_average }}%{% else %}—{% endif %}</strong>
+                        <small>{% if projected_average is not none %}Across your graded courses{% else %}Add grades to calculate{% endif %}</small>
+                    </article>
                 </section>
-                <section class="goals-strip dashboard-card">
+
+                <section class="dashboard-detail-grid">
+                    <article class="dashboard-card">
+                        <div class="section-heading">
+                            <h2>Today’s schedule</h2>
+                            <a class="text-button" href="{{ url_for('calendar') }}">Full calendar →</a>
+                        </div>
+                        {% if today_events %}
+                            {% for event in today_events %}
+                                <div class="schedule-item">
+                                    <time>{{ event["display_time"] }}</time>
+                                    <span class="schedule-colour {{ event['category'] }}"></span>
+                                    <div>
+                                        <strong>{{ event["title"] }}</strong>
+                                        <p>{{ event["category_label"] }}{% if event["notes"] %} · {{ event["notes"] }}{% endif %}</p>
+                                    </div>
+                                    <small>{{ event["duration_minutes"] }} min</small>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="dashboard-empty-state">
+                                <strong>Your day is open.</strong>
+                                <p>Add an event from the calendar and it will appear here.</p>
+                                <a href="{{ url_for('calendar') }}">Open calendar →</a>
+                            </div>
+                        {% endif %}
+                    </article>
+
+                    <article class="dashboard-card dashboard-todo-card">
     <div class="section-heading">
         <div>
-            <p class="eyebrow">MY GOALS</p>
-            <h2>Small targets for this semester</h2>
+            <p class="eyebrow">TO-DO</p>
+            <h2>Tasks coming up</h2>
         </div>
 
-        <button type="button" class="text-button">
-            Manage goals →
-        </button>
+        <a
+            class="text-button"
+            href="{{ url_for('todo') }}"
+        >
+            View all →
+        </a>
     </div>
 
-    <div class="goal-grid">
-        <article class="mini-goal">
-            <div class="goal-information">
-                <div>
-                    <strong>9 study hours</strong>
-                    <span>this week</span>
-                </div>
+    {% if dashboard_tasks %}
+        <div class="dashboard-task-list">
+            {% for task in dashboard_tasks %}
+                <article class="dashboard-task-item">
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'toggle_task',
+                            task_id=task['id']
+                        ) }}"
+                    >
+                        <button
+                            type="submit"
+                            class="dashboard-task-check"
+                            aria-label="Mark task complete"
+                        ></button>
+                    </form>
 
-                <b>6.5 / 9h</b>
-            </div>
+                    <div>
+                        <strong>{{ task["title"] }}</strong>
 
-            <div class="progress-bar">
-                <span style="width: 72%;"></span>
-            </div>
-        </article>
+                        <p>
+                            {% if task["course_code"] %}
+                                {{ task["course_code"] }}
+                                ·
+                                {{ task["course_name"] }}
+                            {% else %}
+                                Personal
+                            {% endif %}
+                        </p>
+                    </div>
 
-        <article class="mini-goal">
-            <div class="goal-information">
-                <div>
-                    <strong>Submit everything early</strong>
-                    <span>before 11:59 PM</span>
-                </div>
+                    <div class="dashboard-task-date">
+                        {% if task["pretty_due_date"] %}
+    <time
+        class="{% if task['is_overdue'] %}overdue{% endif %}"
+    >
+        {% if task["is_overdue"] %}
+            Overdue ·
+        {% endif %}
 
-                <b>4 / 6</b>
-            </div>
+        {{ task["pretty_due_date"] }}
 
-            <div class="progress-bar">
-                <span style="width: 67%;"></span>
-            </div>
-        </article>
+        {% if task["pretty_due_time"] %}
+            · {{ task["pretty_due_time"] }}
+        {% endif %}
+    </time>
+{% else %}
+    <time>No deadline</time>
+{% endif %}
 
-        <article class="mini-goal">
-            <div class="goal-information">
-                <div>
-                    <strong>85% semester average</strong>
-                    <span>current projection</span>
-                </div>
-
-                <b>84%</b>
-            </div>
-
-            <div class="progress-bar">
-                <span style="width: 84%;"></span>
-            </div>
-        </article>
-    </div>
-</section>
-
-<section class="midterm-reminder">
-    <div>
-        <span class="midterm-badge">MIDTERM IN 8 DAYS</span>
-
-        <h2>Database Management</h2>
-
-        <p>
-            October 1 · 25% of your grade ·
-            3 review blocks already planned
-        </p>
-    </div>
-
-    <button type="button">View midterm plan →</button>
-</section>
-
-<section class="dashboard-detail-grid">
-    <article class="dashboard-card">
-        <div class="section-heading">
-            <h2>Today’s schedule</h2>
-
-            <button type="button" class="text-button">
-                Full calendar →
-            </button>
+                        <span class="priority-badge {{ task['priority'] }}">
+                            {{ task["priority"] }}
+                        </span>
+                    </div>
+                </article>
+            {% endfor %}
         </div>
+    {% else %}
+        <div class="dashboard-empty-state compact">
+            <strong>You’re all caught up.</strong>
 
-        <div class="schedule-item">
-            <time>1:00 PM</time>
+            <p>
+                New incomplete tasks will appear here.
+            </p>
 
-            <span class="schedule-colour berry"></span>
-
-            <div>
-                <strong>Database Management</strong>
-                <p>Class · SSC 2036</p>
-            </div>
-
-            <small>75 min</small>
+            <a href="{{ url_for('todo') }}">
+                Add a task →
+            </a>
         </div>
+    {% endif %}
+</article>
+                </section>
 
-        <div class="schedule-item">
-            <time>3:00 PM</time>
-
-            <span class="schedule-colour sage"></span>
-
-            <div>
-                <strong>SQL query practice</strong>
-                <p>Recommended study block</p>
-            </div>
-
-            <small>45 min</small>
-        </div>
-
-        <div class="schedule-item">
-            <time>7:00 PM</time>
-
-            <span class="schedule-colour gold"></span>
-
-            <div>
-                <strong>Use-case modelling</strong>
-                <p>Software Requirements</p>
-            </div>
-
-            <small>30 min</small>
-        </div>
-    </article>
-
-    <article class="recommendation-card">
-        <p class="eyebrow">RECOMMENDED STUDY BLOCK</p>
-
-        <h2>
-            Database Management
-            <span>3:00–3:45 PM</span>
-        </h2>
-
-        <p>
-            Scheduled before tomorrow’s deadline. Includes an
-            18-minute buffer based on your previous sessions.
-        </p>
-
-        <p>
-            <strong>Focus:</strong>
-            SQL query practice · Joins and subqueries
-        </p>
-
-        <button type="button">Start study block</button>
-    </article>
-</section>
+                <section class="dashboard-card upcoming-deadlines-card">
+                    <div class="section-heading">
+                        <h2>Upcoming deadlines</h2>
+                        <a class="text-button" href="{{ url_for('semester') }}">View courses →</a>
+                    </div>
+                    {% if upcoming_assessments %}
+                        <div class="deadline-list">
+                            {% for assessment in upcoming_assessments %}
+                                <a class="deadline-item" href="{{ url_for('course_details', course_id=assessment['course_id']) }}">
+                                    <span class="deadline-date"><small>{{ assessment["month"] }}</small><strong>{{ assessment["day"] }}</strong></span>
+                                    <span class="deadline-copy">
+                                        <strong>{{ assessment["name"] }}</strong>
+                                        <small>{{ assessment["course_name"] }}</small>
+                                    </span>
+                                    <span class="deadline-weight">{{ assessment["weight"] }}% weight</span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="dashboard-empty-state compact">
+                            <strong>No upcoming deadlines.</strong>
+                            <p>Add an ungraded assessment with a future date and it will appear here.</p>
+                        </div>
+                    {% endif %}
+                </section>
             </section>
         </main>
-
     </div>
 </body>
 </html>

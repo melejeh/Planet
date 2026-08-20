@@ -34,11 +34,13 @@
     Calendar
 </a>
 
-        <a href="#">
-            <span>✓</span>
-            To-Do
-        </a>
-
+        <a
+    href="{{ url_for('todo') }}"
+    class="{% if active_page == 'todo' %}active{% endif %}"
+>
+    <span>✓</span>
+    To-Do
+</a>
         <a href="#">
             <span>◎</span>
             Goals

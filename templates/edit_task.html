@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <title>Edit Task | Planet</title>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        {% set active_page = "todo" %}
+        {% include "sidebar.html" %}
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <input
+                    type="search"
+                    placeholder="Search your tasks..."
+                >
+            </header>
+
+            <section class="edit-task-workspace">
+                <a
+                    href="{{ url_for('todo') }}"
+                    class="back-link"
+                >
+                    ← Back to To-Do
+                </a>
+
+                <header class="edit-task-heading">
+                    <p class="eyebrow">EDIT TASK</p>
+                    <h1>Update your task</h1>
+
+                    <p>
+                        Change the details, deadline or
+                        priority for this task.
+                    </p>
+                </header>
+
+                <section class="edit-task-card">
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'edit_task',
+                            task_id=task['id']
+                        ) }}"
+                    >
+                        <div class="task-form-grid">
+                            <label class="task-title-field">
+                                Task
+
+                                <input
+                                    type="text"
+                                    name="title"
+                                    value="{{ task['title'] }}"
+                                    required
+                                >
+                            </label>
+
+                            <label>
+                                Course
+
+                                <select name="course_id">
+                                    <option value="">
+                                        No course
+                                    </option>
+
+                                    {% for course in courses %}
+                                        <option
+                                            value="{{ course['id'] }}"
+                                            {% if task["course_id"] == course["id"] %}
+                                                selected
+                                            {% endif %}
+                                        >
+                                            {{ course["code"] }}
+                                            ·
+                                            {{ course["name"] }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+
+                            <label>
+                                Due date
+
+                                <input
+                                    type="date"
+                                    name="due_date"
+                                    value="{{ task['due_date'] or '' }}"
+                                >
+                            </label>
+
+                            <label>
+                                Due time
+
+                                <input
+                                    type="time"
+                                    name="due_time"
+                                    value="{{ task['due_time'] or '' }}"
+                                >
+                            </label>
+
+                            <label>
+                                Priority
+
+                                <select name="priority">
+                                    <option
+                                        value="normal"
+                                        {% if task["priority"] == "normal" %}
+                                            selected
+                                        {% endif %}
+                                    >
+                                        Normal
+                                    </option>
+
+                                    <option
+                                        value="medium"
+                                        {% if task["priority"] == "medium" %}
+                                            selected
+                                        {% endif %}
+                                    >
+                                        Medium
+                                    </option>
+
+                                    <option
+                                        value="high"
+                                        {% if task["priority"] == "high" %}
+                                            selected
+                                        {% endif %}
+                                    >
+                                        High
+                                    </option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="edit-task-actions">
+                            <a href="{{ url_for('todo') }}">
+                                Cancel
+                            </a>
+
+                            <button type="submit">
+                                Save changes
+                            </button>
+                        </div>
+                    </form>
+                </section>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
