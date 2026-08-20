@@ -7,6 +7,55 @@
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
+    <style>
+        /* Only the timetable scrolls; the page heading and week controls stay put. */
+        .calendar-scroll-window {
+            width: 100%;
+            max-height: 640px;
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: var(--white);
+            scrollbar-gutter: stable;
+            overscroll-behavior: contain;
+        }
+
+        .calendar-scroll-window .demo-calendar-grid {
+            overflow: visible;
+            border: 0;
+            border-radius: 0;
+        }
+
+        .calendar-scroll-window .calendar-time-heading,
+        .calendar-scroll-window .demo-day-heading {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--white);
+        }
+
+        .calendar-scroll-window .demo-day-heading.today {
+            background: #fbf1f5;
+        }
+
+        .calendar-scroll-window .calendar-time-heading {
+            left: 0;
+            z-index: 12;
+        }
+
+        .calendar-scroll-window .calendar-time-rail {
+            position: sticky;
+            left: 0;
+            z-index: 6;
+            background-color: var(--white);
+        }
+
+        @media (max-width: 800px) {
+            .calendar-scroll-window {
+                max-height: 560px;
+            }
+        }
+    </style>
     <title>Calendar | Planet</title>
 </head>
 
@@ -195,6 +244,7 @@
                     </div>
                 </nav>
 
+                <div class="calendar-scroll-window">
                 <section class="demo-calendar-grid">
                     <div class="calendar-time-heading">TIME</div>
 
@@ -253,6 +303,7 @@
                         </article>
                     {% endfor %}
                 </section>
+                </div>
 
                 <div class="calendar-legend">
                     <span><i class="class"></i>Class</span>
@@ -310,7 +361,7 @@
             const columnBounds = dayColumn.getBoundingClientRect();
             const clickedPixels = clickEvent.clientY - columnBounds.top;
 
-            // Each hour is 64 pixels. Snap the selected time to 30 minutes.
+            // Each hour is 42 pixels. Snap the selected time to 30 minutes.
             const minutesAfterSix = Math.round(
     clickedPixels / 21
 ) * 30;
