@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <title>Focus | Planet</title>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        {% set active_page = "focus" %}
+        {% include "sidebar.html" %}
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <input
+                    type="search"
+                    placeholder="Search your study sessions..."
+                >
+            </header>
+
+            <section class="focus-content">
+                <div class="focus-heading">
+                    <div>
+                        <p class="eyebrow">STUDY WITH INTENTION</p>
+
+                        <h1>Focus</h1>
+
+                        <p>
+                            Track your study time and build consistent
+                            habits.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="primary-button"
+                        id="open-focus-form"
+                    >
+                        ＋ Log study time
+                    </button>
+                </div>
+
+                <section class="focus-summary-grid">
+                    <article class="focus-summary-card">
+                        <span>Studied this week</span>
+
+                        <strong>
+                            {{ weekly_hours }}h
+                        </strong>
+
+                        <small>
+                            {{ weekly_minutes }} total minutes
+                        </small>
+                    </article>
+
+                    <article class="focus-summary-card">
+                        <span>Sessions completed</span>
+
+                        <strong>
+                            {{ focus_sessions|length }}
+                        </strong>
+
+                        <small>
+                            All recorded focus sessions
+                        </small>
+                    </article>
+                </section>
+
+                <section class="focus-layout">
+                    <article class="focus-timer-card">
+                        <p class="eyebrow">FOCUS TIMER</p>
+
+                        <h2>Ready when you are.</h2>
+
+                        <p class="focus-timer-description">
+                            Choose what you are working on and start
+                            a focused study session.
+                        </p>
+                        <p
+    class="focus-timer-phase"
+    id="focus-timer-phase"
+>
+    Stopwatch
+</p>
+
+                        <div
+                            class="focus-timer"
+                            id="focus-timer"
+                        >
+                            00:00:00
+                        </div>
+
+                        <div class="focus-timer-fields">
+                            <div class="focus-technique-field">
+    <label>
+        Timer technique
+
+        <select id="timer-technique">
+            <option value="stopwatch">
+                Stopwatch
+            </option>
+
+            <option value="pomodoro">
+                Pomodoro · 25 / 5
+            </option>
+
+            <option value="long_pomodoro">
+                Long Pomodoro · 50 / 10
+            </option>
+
+            <option value="deep_work">
+                Deep Work · 90 / 20
+            </option>
+
+            <option value="custom">
+                Custom timer
+            </option>
+        </select>
+    </label>
+
+    <p
+        class="focus-technique-description"
+        id="focus-technique-description"
+    >
+        Start Timer
+    </p>
+</div>
+
+<div
+    class="focus-custom-time"
+    id="focus-custom-time"
+    hidden
+>
+    <label>
+        Focus hours
+
+        <input
+            type="number"
+            id="custom-focus-hours"
+            min="0"
+            max="8"
+            value="0"
+        >
+    </label>
+
+    <label>
+        Focus minutes
+
+        <input
+            type="number"
+            id="custom-focus-minutes"
+            min="0"
+            max="59"
+            value="30"
+        >
+    </label>
+
+    <label>
+        Break minutes
+
+        <input
+            type="number"
+            id="custom-break-minutes"
+            min="0"
+            max="60"
+            value="5"
+        >
+    </label>
+</div>
+                            <label>
+                                Session name
+
+                                <input
+                                    type="text"
+                                    id="timer-title"
+                                    placeholder="What are you studying?"
+                                >
+                            </label>
+
+                            <label>
+                                Course
+
+                                <select id="timer-course">
+                                    <option value="">
+                                        No course
+                                    </option>
+
+                                    {% for course in courses %}
+                                        <option
+                                            value="{{ course['id'] }}"
+                                        >
+                                            {{ course["code"] }} ·
+                                            {{ course["name"] }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="focus-timer-actions">
+    <button
+        type="button"
+        class="primary-button"
+        id="start-focus-timer"
+    >
+        Start focus
+    </button>
+
+    <button
+        type="button"
+        class="secondary-button"
+        id="pause-focus-timer"
+        disabled
+    >
+        Pause
+    </button>
+
+    <button
+        type="button"
+        class="secondary-button"
+        id="finish-focus-timer"
+        disabled
+    >
+        Finish &amp; save
+    </button>
+
+    <button
+        type="button"
+        class="text-button"
+        id="reset-focus-timer"
+    >
+        Reset
+    </button>
+</div>
+
+
+<small
+    class="focus-timer-note"
+    id="focus-timer-message"
+>
+    Your completed timer session will appear in Study history.
+</small>
+                    </article>
+
+                    <article class="focus-history-card">
+                        <div class="focus-history-heading">
+                            <div>
+                                <p class="eyebrow">RECENT ACTIVITY</p>
+
+                                <h2>Study history</h2>
+                            </div>
+
+                            <span class="focus-session-count">
+                                {{ focus_sessions|length }}
+                                {% if focus_sessions|length == 1 %}
+                                    session
+                                {% else %}
+                                    sessions
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        {% if focus_sessions %}
+                            <div class="focus-session-list">
+                                {% for study_session in focus_sessions %}
+                                    <article class="focus-session-item">
+                                        <div class="focus-session-icon">
+                                            ◷
+                                        </div>
+
+                                        <div class="focus-session-information">
+                                            <strong>
+                                                {{ study_session["title"] }}
+                                            </strong>
+
+                                           <span>
+    {% if study_session["course_code"] %}
+        {{ study_session["course_code"] }}
+        ·
+        {{ study_session["course_name"] }}
+    {% else %}
+        Personal study
+    {% endif %}
+
+    · {{ study_session["technique_label"] }}
+</span>
+                                            {% if study_session["notes"] %}
+                                                <p>
+                                                    {{ study_session["notes"] }}
+                                                </p>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="focus-session-details">
+    <strong>
+        {{ study_session["duration_label"] }}
+    </strong>
+
+    <span>
+        {{ study_session["date_label"] }}
+    </span>
+
+    <small>
+        {{ study_session["start_label"] }}
+        –
+        {{ study_session["end_label"] }}
+    </small>
+
+    <div class="focus-session-actions">
+        <a
+            href="{{ url_for(
+                'edit_focus_session',
+                focus_session_id=study_session['id']
+            ) }}"
+        >
+            Edit
+        </a>
+
+        <form
+            method="POST"
+            action="{{ url_for(
+                'delete_focus_session',
+                focus_session_id=study_session['id']
+            ) }}"
+            onsubmit="
+                return confirm(
+                    'Are you sure you want to delete this study session?'
+                );
+            "
+        >
+            <button type="submit">
+                Delete
+            </button>
+        </form>
+    </div>
+</div>
+                                    </article>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="focus-empty-state">
+                                <span>◷</span>
+
+                                <h3>No study sessions yet.</h3>
+
+                                <p>
+                                    Start the timer or manually log time
+                                    after you finish studying.
+                                </p>
+
+                                <button
+                                    type="button"
+                                    class="text-button"
+                                    id="open-empty-focus-form"
+                                >
+                                    Log your first session →
+                                </button>
+                            </div>
+                        {% endif %}
+                    </article>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <div
+        class="planet-modal"
+        id="focus-form-modal"
+        aria-hidden="true"
+    >
+        <div
+            class="planet-modal-overlay"
+            data-close-focus-form
+        ></div>
+
+        <section
+            class="planet-modal-card focus-form-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="focus-form-title"
+        >
+            <button
+                type="button"
+                class="planet-modal-close"
+                data-close-focus-form
+                aria-label="Close form"
+            >
+                ×
+            </button>
+
+            <p class="eyebrow">MANUAL SESSION</p>
+
+            <h2 id="focus-form-title">
+                Log study time
+            </h2>
+
+            <p>
+                Add time you studied away from the Planet timer.
+            </p>
+
+            <form
+                method="POST"
+                action="{{ url_for('focus') }}"
+                class="focus-log-form"
+            >
+                <label>
+                    Session name
+
+                    <input
+                        type="text"
+                        name="title"
+                        placeholder="What did you work on?"
+                    >
+                </label>
+
+                <label>
+                    Course
+
+                    <select name="course_id">
+                        <option value="">
+                            No course
+                        </option>
+
+                        {% for course in courses %}
+                            <option value="{{ course['id'] }}">
+                                {{ course["code"] }} ·
+                                {{ course["name"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <div class="focus-form-grid">
+                    <label>
+                        Date
+
+                        <input
+                            type="date"
+                            name="session_date"
+                            value="{{ today_date }}"
+                            required
+                        >
+                    </label>
+
+                    <label>
+                        Start time
+
+                        <input
+                            type="time"
+                            name="start_time"
+                            value="{{ current_time }}"
+                            required
+                        >
+                    </label>
+                </div>
+
+                <div class="focus-form-grid">
+                    <label>
+                        Hours
+
+                        <input
+                            type="number"
+                            name="hours"
+                            min="0"
+                            max="24"
+                            value="0"
+                        >
+                    </label>
+
+                    <label>
+                        Minutes
+
+                        <input
+                            type="number"
+                            name="minutes"
+                            min="0"
+                            max="59"
+                            value="30"
+                        >
+                    </label>
+                </div>
+
+                <label>
+                    Notes
+
+                    <textarea
+                        name="notes"
+                        rows="3"
+                        placeholder="Optional notes about this session"
+                    ></textarea>
+                </label>
+
+                <button
+                    type="submit"
+                    class="primary-button focus-submit-button"
+                >
+                    Save study session
+                </button>
+            </form>
+        </section>
+    </div>
+
+    <script>
+    /*
+        Manual study-session modal
+    */
+
+    const focusModal = document.getElementById(
+        "focus-form-modal"
+    );
+
+    const openFocusButtons = [
+        document.getElementById("open-focus-form"),
+        document.getElementById("open-empty-focus-form")
+    ];
+
+    const closeFocusButtons = document.querySelectorAll(
+        "[data-close-focus-form]"
+    );
+
+    function openFocusForm() {
+        focusModal.classList.add("open");
+
+        focusModal.setAttribute(
+            "aria-hidden",
+            "false"
+        );
+    }
+
+    function closeFocusForm() {
+        focusModal.classList.remove("open");
+
+        focusModal.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+    }
+
+    openFocusButtons.forEach(function (button) {
+        if (button) {
+            button.addEventListener(
+                "click",
+                openFocusForm
+            );
+        }
+    });
+
+    closeFocusButtons.forEach(function (button) {
+        button.addEventListener(
+            "click",
+            closeFocusForm
+        );
+    });
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
+            if (event.key === "Escape") {
+                closeFocusForm();
+            }
+        }
+    );
+
+
+    /*
+        Focus timer
+    */
+
+    const timerCard = document.querySelector(
+        ".focus-timer-card"
+    );
+
+    const timerDisplay = document.getElementById(
+        "focus-timer"
+    );
+
+    const timerPhaseLabel = document.getElementById(
+        "focus-timer-phase"
+    );
+
+    const techniqueSelect = document.getElementById(
+        "timer-technique"
+    );
+
+    const techniqueDescription = document.getElementById(
+        "focus-technique-description"
+    );
+
+    const customTimeFields = document.getElementById(
+        "focus-custom-time"
+    );
+
+    const customFocusHours = document.getElementById(
+        "custom-focus-hours"
+    );
+
+    const customFocusMinutes = document.getElementById(
+        "custom-focus-minutes"
+    );
+
+    const customBreakMinutes = document.getElementById(
+        "custom-break-minutes"
+    );
+
+    const timerTitle = document.getElementById(
+        "timer-title"
+    );
+
+    const timerCourse = document.getElementById(
+        "timer-course"
+    );
+
+    const startButton = document.getElementById(
+        "start-focus-timer"
+    );
+
+    const pauseButton = document.getElementById(
+        "pause-focus-timer"
+    );
+
+    const finishButton = document.getElementById(
+        "finish-focus-timer"
+    );
+
+    const resetButton = document.getElementById(
+        "reset-focus-timer"
+    );
+
+    const timerMessage = document.getElementById(
+        "focus-timer-message"
+    );
+
+    const timerSaveUrl = (
+        "{{ url_for('save_focus_timer') }}"
+    );
+
+
+    /*
+        Available timer techniques
+    */
+
+    const timerTechniques = {
+        stopwatch: {
+            label: "Stopwatch",
+            focusMinutes: 0,
+            breakMinutes: 0,
+            description:
+                "Count upward and save when done."
+        },
+
+        pomodoro: {
+            label: "Pomodoro",
+            focusMinutes: 25,
+            breakMinutes: 5,
+            description:
+                "Focus for 25 minutes, then take a 5-minute break."
+        },
+
+        long_pomodoro: {
+            label: "Long Pomodoro",
+            focusMinutes: 50,
+            breakMinutes: 10,
+            description:
+                "Focus for 50 minutes, then take a 10-minute break."
+        },
+
+        deep_work: {
+            label: "Deep Work",
+            focusMinutes: 90,
+            breakMinutes: 20,
+            description:
+                "Focus deeply for 90 minutes, then take a 20-minute break."
+        },
+
+        custom: {
+            label: "Custom",
+            focusMinutes: 30,
+            breakMinutes: 5,
+            description:
+                "Choose your own focus and break durations."
+        }
+    };
+
+
+    /*
+        Timer state
+    */
+
+    let timerInterval = null;
+
+    let elapsedFocusSeconds = 0;
+    let remainingSeconds = 0;
+
+    let timerHasStarted = false;
+    let timerIsSaving = false;
+    let timerPhase = "focus";
+    let focusSessionSaved = false;
+
+
+    function selectedTechnique() {
+        return techniqueSelect.value;
+    }
+
+
+    function customFocusTotalMinutes() {
+        const hours = Math.max(
+            0,
+            Number(customFocusHours.value) || 0
+        );
+
+        const minutes = Math.max(
+            0,
+            Math.min(
+                59,
+                Number(customFocusMinutes.value) || 0
+            )
+        );
+
+        return (
+            hours * 60
+            + minutes
+        );
+    }
+
+
+    function techniqueFocusMinutes() {
+        const technique = selectedTechnique();
+
+        if (technique === "custom") {
+            return customFocusTotalMinutes();
+        }
+
+        return timerTechniques[
+            technique
+        ].focusMinutes;
+    }
+
+
+    function techniqueBreakMinutes() {
+        const technique = selectedTechnique();
+
+        if (technique === "custom") {
+            return Math.max(
+                0,
+                Number(customBreakMinutes.value) || 0
+            );
+        }
+
+        return timerTechniques[
+            technique
+        ].breakMinutes;
+    }
+
+
+    function isStopwatch() {
+        return (
+            selectedTechnique() === "stopwatch"
+        );
+    }
+
+
+    function formatTime(totalSeconds) {
+        const safeSeconds = Math.max(
+            0,
+            totalSeconds
+        );
+
+        const hours = Math.floor(
+            safeSeconds / 3600
+        );
+
+        const minutes = Math.floor(
+            (safeSeconds % 3600) / 60
+        );
+
+        const seconds = (
+            safeSeconds % 60
+        );
+
+        return [
+            hours,
+            minutes,
+            seconds
+        ]
+            .map(function (number) {
+                return String(number).padStart(
+                    2,
+                    "0"
+                );
+            })
+            .join(":");
+    }
+
+
+    function updateTimerDisplay() {
+        if (
+            timerPhase === "focus"
+            && isStopwatch()
+        ) {
+            timerDisplay.textContent = formatTime(
+                elapsedFocusSeconds
+            );
+
+            return;
+        }
+
+        timerDisplay.textContent = formatTime(
+            remainingSeconds
+        );
+    }
+
+
+    function prepareSelectedTechnique() {
+        if (
+            timerHasStarted
+            || timerInterval
+            || timerIsSaving
+        ) {
+            return;
+        }
+
+        const technique = selectedTechnique();
+
+        techniqueDescription.textContent = (
+            timerTechniques[
+                technique
+            ].description
+        );
+
+        customTimeFields.hidden = (
+            technique !== "custom"
+        );
+
+        timerPhase = "focus";
+        elapsedFocusSeconds = 0;
+        focusSessionSaved = false;
+
+        timerCard.classList.remove(
+            "timer-break-mode"
+        );
+
+        if (technique === "stopwatch") {
+            remainingSeconds = 0;
+
+            timerPhaseLabel.textContent = (
+                "Stopwatch"
+            );
+        } else {
+            remainingSeconds = (
+                techniqueFocusMinutes() * 60
+            );
+
+            timerPhaseLabel.textContent = (
+                "Focus · "
+                + timerTechniques[technique].label
+            );
+        }
+
+        updateTimerDisplay();
+
+        startButton.textContent = "Start focus";
+        startButton.disabled = false;
+
+        pauseButton.disabled = true;
+        finishButton.disabled = true;
+
+        timerMessage.textContent = (
+            technique === "stopwatch"
+                ? "Start when you are ready and finish whenever you choose."
+                : "The timer will count down from your selected focus time."
+        );
+    }
+
+
+    function lockTimerFields() {
+        techniqueSelect.disabled = true;
+        timerTitle.disabled = true;
+        timerCourse.disabled = true;
+
+        customFocusHours.disabled = true;
+        customFocusMinutes.disabled = true;
+        customBreakMinutes.disabled = true;
+    }
+
+
+    function unlockTimerFields() {
+        techniqueSelect.disabled = false;
+        timerTitle.disabled = false;
+        timerCourse.disabled = false;
+
+        customFocusHours.disabled = false;
+        customFocusMinutes.disabled = false;
+        customBreakMinutes.disabled = false;
+    }
+
+
+    function stopInterval() {
+        window.clearInterval(
+            timerInterval
+        );
+
+        timerInterval = null;
+    }
+
+
+    function startTimer() {
+        if (
+            timerInterval
+            || timerIsSaving
+        ) {
+            return;
+        }
+
+        if (
+            timerPhase === "focus"
+            && !isStopwatch()
+            && remainingSeconds <= 0
+        ) {
+            timerMessage.textContent = (
+                "Choose a focus duration greater than zero."
+            );
+
+            return;
+        }
+
+        timerHasStarted = true;
+        lockTimerFields();
+
+        timerInterval = window.setInterval(
+            function () {
+                if (timerPhase === "break") {
+                    remainingSeconds -= 1;
+
+                    updateTimerDisplay();
+
+                    if (remainingSeconds <= 0) {
+                        completeBreak();
+                    }
+
+                    return;
+                }
+
+                elapsedFocusSeconds += 1;
+
+                if (!isStopwatch()) {
+                    remainingSeconds -= 1;
+                }
+
+                updateTimerDisplay();
+
+                if (
+                    !isStopwatch()
+                    && remainingSeconds <= 0
+                ) {
+                    completeFocusCountdown();
+                }
+            },
+            1000
+        );
+
+        startButton.disabled = true;
+        pauseButton.disabled = false;
+
+        if (timerPhase === "focus") {
+            finishButton.disabled = false;
+
+            timerMessage.textContent = (
+                "Focus session in progress."
+            );
+        } else {
+            finishButton.disabled = false;
+            finishButton.textContent = "Skip break";
+
+            timerMessage.textContent = (
+                "Break in progress."
+            );
+        }
+    }
+
+
+    function pauseTimer() {
+        if (!timerInterval) {
+            return;
+        }
+
+        stopInterval();
+
+        startButton.disabled = false;
+        pauseButton.disabled = true;
+
+        if (timerPhase === "focus") {
+            startButton.textContent = (
+                "Continue focus"
+            );
+
+            timerMessage.textContent = (
+                "Timer paused. Continue or finish and save."
+            );
+        } else {
+            startButton.textContent = (
+                "Continue break"
+            );
+
+            timerMessage.textContent = (
+                "Break paused."
+            );
+        }
+    }
+
+
+    async function saveFocusSession(
+        reloadAfterSaving
+    ) {
+        if (
+            elapsedFocusSeconds <= 0
+            || focusSessionSaved
+            || timerIsSaving
+        ) {
+            return false;
+        }
+
+        timerIsSaving = true;
+
+        finishButton.disabled = true;
+        finishButton.textContent = "Saving...";
+
+        timerMessage.textContent = (
+            "Saving your focus session..."
+        );
+
+        try {
+            const response = await fetch(
+                timerSaveUrl,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        title: timerTitle.value,
+
+                        course_id:
+                            timerCourse.value,
+
+                        elapsed_seconds:
+                            elapsedFocusSeconds,
+
+                        technique:
+                            selectedTechnique(),
+
+                        planned_minutes:
+                            techniqueFocusMinutes()
+                    })
+                }
+            );
+
+            const result = await response.json();
+
+            if (
+                !response.ok
+                || !result.success
+            ) {
+                throw new Error(
+                    result.message
+                    || "The focus session could not be saved."
+                );
+            }
+
+            focusSessionSaved = true;
+            timerIsSaving = false;
+
+            if (reloadAfterSaving) {
+                window.location.reload();
+
+                return true;
+            }
+
+            return true;
+
+        } catch (error) {
+            timerIsSaving = false;
+
+            finishButton.disabled = false;
+            finishButton.textContent = (
+                "Finish & save"
+            );
+
+            resetButton.disabled = false;
+
+            timerMessage.textContent = (
+                error.message
+            );
+
+            return false;
+        }
+    }
+
+
+    async function completeFocusCountdown() {
+        stopInterval();
+
+        remainingSeconds = 0;
+        updateTimerDisplay();
+
+        startButton.disabled = true;
+        pauseButton.disabled = true;
+        resetButton.disabled = true;
+
+        const saved = await saveFocusSession(
+            false
+        );
+
+        if (!saved) {
+            resetButton.disabled = false;
+            return;
+        }
+
+        const breakMinutes = (
+            techniqueBreakMinutes()
+        );
+
+        if (breakMinutes > 0) {
+            beginBreak(
+                breakMinutes
+            );
+        } else {
+            window.location.reload();
+        }
+    }
+
+
+    function beginBreak(breakMinutes) {
+        timerPhase = "break";
+        timerHasStarted = false;
+        remainingSeconds = breakMinutes * 60;
+
+        timerCard.classList.add(
+            "timer-break-mode"
+        );
+
+        timerPhaseLabel.textContent = "Break";
+
+        updateTimerDisplay();
+
+        startButton.disabled = false;
+        startButton.textContent = "Start break";
+
+        pauseButton.disabled = true;
+
+        finishButton.disabled = false;
+        finishButton.textContent = "Skip break";
+
+        resetButton.disabled = false;
+
+        timerMessage.textContent = (
+            "Focus saved. Take a "
+            + breakMinutes
+            + "-minute break."
+        );
+    }
+
+
+    function completeBreak() {
+        stopInterval();
+
+        remainingSeconds = 0;
+        updateTimerDisplay();
+
+        timerMessage.textContent = (
+            "Break complete. Great work!"
+        );
+
+        window.setTimeout(
+            function () {
+                window.location.reload();
+            },
+            1200
+        );
+    }
+
+
+    async function finishTimer() {
+        if (timerPhase === "break") {
+            window.location.reload();
+            return;
+        }
+
+        if (
+            !timerHasStarted
+            || elapsedFocusSeconds <= 0
+        ) {
+            timerMessage.textContent = (
+                "Start the timer before saving."
+            );
+
+            return;
+        }
+
+        stopInterval();
+
+        startButton.disabled = true;
+        pauseButton.disabled = true;
+        resetButton.disabled = true;
+
+        await saveFocusSession(
+            true
+        );
+    }
+
+
+    function resetTimer() {
+        stopInterval();
+
+        if (
+            timerPhase === "break"
+            && focusSessionSaved
+        ) {
+            window.location.reload();
+            return;
+        }
+
+        elapsedFocusSeconds = 0;
+        remainingSeconds = 0;
+
+        timerHasStarted = false;
+        timerIsSaving = false;
+        focusSessionSaved = false;
+        timerPhase = "focus";
+
+        unlockTimerFields();
+        resetButton.disabled = false;
+
+        prepareSelectedTechnique();
+
+        timerMessage.textContent = (
+            "Timer reset. Nothing was saved."
+        );
+    }
+
+
+    techniqueSelect.addEventListener(
+        "change",
+        prepareSelectedTechnique
+    );
+
+    [
+        customFocusHours,
+        customFocusMinutes,
+        customBreakMinutes
+    ].forEach(function (input) {
+        input.addEventListener(
+            "input",
+            function () {
+                if (
+                    selectedTechnique()
+                    === "custom"
+                ) {
+                    prepareSelectedTechnique();
+                }
+            }
+        );
+    });
+
+    startButton.addEventListener(
+        "click",
+        startTimer
+    );
+
+    pauseButton.addEventListener(
+        "click",
+        pauseTimer
+    );
+
+    finishButton.addEventListener(
+        "click",
+        finishTimer
+    );
+
+    resetButton.addEventListener(
+        "click",
+        resetTimer
+    );
+
+    prepareSelectedTechnique();
+</script>
+</body>
+</html>
