@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Goals | Planet</title>
+</head>
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        {% set active_page = "goals" %}
+        {% include "sidebar.html" %}
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <input type="search" placeholder="Search your goals...">
+            </header>
+
+            <section class="goals-content">
+                <header class="goals-heading">
+                    <div>
+                        <p class="eyebrow">YOUR PROGRESS</p>
+                        <h1>Goals</h1>
+                        <p>Set meaningful targets and let Planet help you track them.</p>
+                    </div>
+                    <button type="button" class="dark-button" id="open-goal-form">＋ Add goal</button>
+                </header>
+
+                <section class="goals-summary-grid">
+                    <article><span>Total goals</span><strong>{{ goals|length }}</strong><small>Across your planet</small></article>
+                    <article><span>Completed</span><strong>{{ completed_count }}</strong><small>Targets reached</small></article>
+                    <article><span>In progress</span><strong>{{ goals|length - completed_count }}</strong><small>Still being worked on</small></article>
+                </section>
+
+                <section class="goals-panel">
+                    <div class="goals-panel-heading">
+                        <div>
+                            <p class="eyebrow">MY GOALS</p>
+                            <h2>Your Goals</h2>
+                        </div>
+                        <span>{{ goals|length }} {% if goals|length == 1 %}goal{% else %}goals{% endif %}</span>
+                    </div>
+
+                    {% if goals %}
+                        <div class="goal-card-grid">
+                            {% for goal in goals %}
+                                <article 
+                                id="goal-{{ goal['id'] }}"
+                                class="planet-goal-card {% if goal['is_complete'] %}complete{% endif %}">
+                                    <div class="goal-card-topline">
+                                        {% if goal['is_complete'] %}<span class="goal-complete-pill">REACHED</span>{% endif %}
+                                    </div>
+
+                                    <h3>{{ goal["title"] }}</h3>
+                                    <p class="goal-source">{{ goal["source_label"] }}</p>
+
+                                    <div class="goal-number-row">
+                                        <strong>{{ goal["current_display"] }} / {{ goal["target_display"] }}</strong>
+                                        <span>{{ goal["unit"] }}</span>
+                                    </div>
+
+                                    <div class="goal-progress-track"><span style="width: {{ goal['progress_percent'] }}%;"></span></div>
+
+                                    <div class="goal-card-meta">
+                                        <span>{{ goal["period_label"] }}</span>
+                                        {% if goal['deadline_label'] %}<span>Due {{ goal["deadline_label"] }}</span>{% endif %}
+                                    </div>
+
+                                    <form class="goal-progress-form goal-ajax-form" method="POST" action="{{ url_for('update_goal_progress', goal_id=goal['id']) }}">
+                                        <label>
+                                            Current progress
+                                            <input type="number" name="current_value" min="0" step="0.1" value="{{ goal['current_display'] }}">
+                                        </label>
+                                        <button type="submit" class="secondary-button">Update</button>
+                                    </form>
+
+                                    <div class="goal-card-actions">
+                                        <form class="goal-ajax-form" method="POST" action="{{ url_for('toggle_goal', goal_id=goal['id']) }}">
+                                            <button type="submit" class="text-button">
+                                                {% if goal['is_complete'] %}Mark active{% else %}Mark complete{% endif %}
+                                            </button>
+                                        </form>
+
+                                        <button
+                                            type="button"
+                                            class="text-button goal-edit-button"
+                                            data-action="{{ url_for('edit_goal', goal_id=goal['id']) }}"
+                                            data-title="{{ goal['title']|e }}"
+                                            data-target="{{ goal['target_display'] }}"
+                                            data-unit="{{ goal['unit']|e }}"
+                                            data-period="{{ goal['period'] }}"
+                                            data-deadline="{{ goal['deadline'] or '' }}"
+                                        >Edit</button>
+
+                                        <form class="goal-ajax-form goal-delete-form" method="POST" action="{{ url_for('delete_goal', goal_id=goal['id']) }}">
+                                            <button type="submit" class="goal-delete-button">Delete</button>
+                                        </form>
+                                    </div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="goals-empty-state">
+                            <span>◎</span>
+                            <h3>Your first goal starts here.</h3>
+                            <p>Create a target and update your progress whenever you make headway.</p>
+                            <button type="button" class="text-button" id="open-empty-goal-form">Add your first goal →</button>
+                        </div>
+                    {% endif %}
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <div class="planet-modal" id="goal-edit-modal" aria-hidden="true">
+        <button type="button" class="planet-modal-backdrop" data-close-goal-edit aria-label="Close edit form"></button>
+        <section class="planet-modal-card goals-modal-card" role="dialog" aria-modal="true" aria-labelledby="goal-edit-title">
+            <button type="button" class="planet-modal-close" data-close-goal-edit aria-label="Close edit form">×</button>
+            <p class="eyebrow">EDIT GOAL</p>
+            <h2 id="goal-edit-title">Update your goal</h2>
+            <form method="POST" class="goal-create-form goal-ajax-form" id="goal-edit-form">
+                <label>Goal name<input type="text" name="title" id="edit-goal-name" required></label>
+                <div class="goal-form-grid">
+                    <label>Goal amount<input type="number" name="target_value" id="edit-goal-target" min="0.1" step="0.1" required></label>
+                    <label>Unit<input type="text" name="unit" id="edit-goal-unit" maxlength="30" required></label>
+                </div>
+                <div class="goal-form-grid">
+                    <label>Period
+                        <select name="period" id="edit-goal-period">
+                            <option value="weekly">Weekly</option>
+                            <option value="semester">Semester</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </label>
+                    <label>Deadline (optional)<input type="date" name="deadline" id="edit-goal-deadline"></label>
+                </div>
+                <button type="submit" class="dark-button">Save changes</button>
+            </form>
+        </section>
+    </div>
+
+    <div class="planet-modal" id="goal-form-modal" aria-hidden="true">
+        <button type="button" class="planet-modal-backdrop" data-close-goal-form aria-label="Close form"></button>
+        <section class="planet-modal-card goals-modal-card" role="dialog" aria-modal="true" aria-labelledby="goal-form-title">
+            <button type="button" class="planet-modal-close" data-close-goal-form aria-label="Close form">×</button>
+            <p class="eyebrow">NEW GOAL</p>
+            <h2 id="goal-form-title">What are you working toward?</h2>
+
+            <form method="POST" action="{{ url_for('goals') }}" class="goal-create-form">
+                <input type="hidden" name="goal_type" value="manual">
+                <label>Goal name<input type="text" name="title" placeholder="What would you like to achieve?" required></label>
+                <div class="goal-form-grid">
+                    <label>
+                        Goal amount
+                        <input type="number" name="target_value" min="0.1" step="0.1" required>
+                        <small class="goal-field-help">How many do you want to complete?</small>
+                    </label>
+                    <label>Unit<input type="text" name="unit" placeholder="days, pages, sessions..." maxlength="30" required></label>
+                </div>
+                <div class="goal-form-grid">
+                    <label>Period
+                        <select name="period" id="goal-period">
+                            <option value="weekly">Weekly</option>
+                            <option value="semester">Semester</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </label>
+                    <label>Deadline (optional)<input type="date" name="deadline"></label>
+                </div>
+                <button type="submit" class="dark-button">Create goal</button>
+            </form>
+        </section>
+    </div>
+
+    <script>
+        const goalModal = document.getElementById("goal-form-modal");
+
+        function openGoalForm() {
+            goalModal.classList.add("open");
+            goalModal.setAttribute("aria-hidden", "false");
+        }
+
+        function closeGoalForm() {
+            goalModal.classList.remove("open");
+            goalModal.setAttribute("aria-hidden", "true");
+        }
+
+        [document.getElementById("open-goal-form"), document.getElementById("open-empty-goal-form")].forEach(function (button) {
+            if (button) button.addEventListener("click", openGoalForm);
+        });
+        document.querySelectorAll("[data-close-goal-form]").forEach(function (button) {
+            button.addEventListener("click", closeGoalForm);
+        });
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                closeGoalForm();
+                closeGoalEdit();
+            }
+        });
+
+        const goalEditModal = document.getElementById("goal-edit-modal");
+        const goalEditForm = document.getElementById("goal-edit-form");
+
+        function closeGoalEdit() {
+            goalEditModal.classList.remove("open");
+            goalEditModal.setAttribute("aria-hidden", "true");
+        }
+
+        function bindGoalControls() {
+            document.querySelectorAll(".goal-edit-button").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    goalEditForm.action = button.dataset.action;
+                    document.getElementById("edit-goal-name").value = button.dataset.title;
+                    document.getElementById("edit-goal-target").value = button.dataset.target;
+                    document.getElementById("edit-goal-unit").value = button.dataset.unit;
+                    document.getElementById("edit-goal-period").value = button.dataset.period;
+                    document.getElementById("edit-goal-deadline").value = button.dataset.deadline;
+                    goalEditModal.classList.add("open");
+                    goalEditModal.setAttribute("aria-hidden", "false");
+                });
+            });
+
+            document.querySelectorAll(".goal-ajax-form").forEach(function (form) {
+                if (form.dataset.ajaxBound === "true") return;
+                form.dataset.ajaxBound = "true";
+
+                form.addEventListener("submit", async function (event) {
+                    event.preventDefault();
+                    if (form.classList.contains("goal-delete-form") && !window.confirm("Delete this goal?")) return;
+
+                    const response = await fetch(form.action, {
+                        method: "POST",
+                        body: new FormData(form)
+                    });
+
+                    if (!response.ok) {
+                        window.alert("Planet could not update this goal.");
+                        return;
+                    }
+
+                    const nextPage = new DOMParser().parseFromString(await response.text(), "text/html");
+                    document.querySelector(".goals-summary-grid").replaceWith(nextPage.querySelector(".goals-summary-grid"));
+                    document.querySelector(".goals-panel").replaceWith(nextPage.querySelector(".goals-panel"));
+                    closeGoalEdit();
+                    bindGoalControls();
+                });
+            });
+        }
+
+        document.querySelectorAll("[data-close-goal-edit]").forEach(function (button) {
+            button.addEventListener("click", closeGoalEdit);
+        });
+
+        bindGoalControls();
+    </script>
+</body>
+</html>

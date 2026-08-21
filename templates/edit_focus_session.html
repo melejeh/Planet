@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <title>Edit Study Session | Planet</title>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        {% set active_page = "focus" %}
+        {% include "sidebar.html" %}
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <input
+                    type="search"
+                    placeholder="Search your study sessions..."
+                >
+            </header>
+
+            <section class="focus-edit-content">
+                <a
+                    href="{{ url_for('focus') }}"
+                    class="focus-back-link"
+                >
+                    ← Back to Focus
+                </a>
+
+                <article class="focus-edit-card">
+                    <p class="eyebrow">STUDY SESSION</p>
+
+                    <h1>Edit study time</h1>
+
+                    <p class="focus-edit-description">
+                        Update what you studied and how much time
+                        you completed.
+                    </p>
+
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'edit_focus_session',
+                            focus_session_id=focus_session['id']
+                        ) }}"
+                        class="focus-log-form"
+                    >
+                        <label>
+                            Session name
+
+                            <input
+                                type="text"
+                                name="title"
+                                value="{{ focus_session['title'] }}"
+                            >
+                        </label>
+
+                        <label>
+                            Course
+
+                            <select name="course_id">
+                                <option value="">
+                                    No course
+                                </option>
+
+                                {% for course in courses %}
+                                    <option
+                                        value="{{ course['id'] }}"
+                                        {% if course["id"] == focus_session["course_id"] %}
+                                            selected
+                                        {% endif %}
+                                    >
+                                        {{ course["code"] }} ·
+                                        {{ course["name"] }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <div class="focus-form-grid">
+                            <label>
+                                Date
+
+                                <input
+                                    type="date"
+                                    name="session_date"
+                                    value="{{ focus_session['session_date'] }}"
+                                    required
+                                >
+                            </label>
+
+                            <label>
+                                Start time
+
+                                <input
+                                    type="time"
+                                    name="start_time"
+                                    value="{{ focus_session['start_time'] }}"
+                                    required
+                                >
+                            </label>
+                        </div>
+
+                        <div class="focus-form-grid">
+                            <label>
+                                Hours
+
+                                <input
+                                    type="number"
+                                    name="hours"
+                                    min="0"
+                                    max="24"
+                                    value="{{ focus_session['hours'] }}"
+                                >
+                            </label>
+
+                            <label>
+                                Minutes
+
+                                <input
+                                    type="number"
+                                    name="minutes"
+                                    min="0"
+                                    max="59"
+                                    value="{{ focus_session['minutes'] }}"
+                                >
+                            </label>
+                        </div>
+
+                        <label>
+                            Notes
+
+                            <textarea
+                                name="notes"
+                                rows="4"
+                                placeholder="Optional notes about this session"
+                            >{{ focus_session["notes"] or "" }}</textarea>
+                        </label>
+
+                        <div class="focus-edit-actions">
+                            <a
+                                href="{{ url_for('focus') }}"
+                                class="secondary-link-button"
+                            >
+                                Cancel
+                            </a>
+
+                            <button
+                                type="submit"
+                                class="primary-button"
+                            >
+                                Save changes
+                            </button>
+                        </div>
+                    </form>
+                </article>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

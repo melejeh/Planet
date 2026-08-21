@@ -1,3 +1,4 @@
+
 <aside class="sidebar">
     <div class="sidebar-logo">
         <span class="logo-icon">P</span>
@@ -41,7 +42,10 @@
     <span>✓</span>
     To-Do
 </a>
-        <a href="#">
+        <a
+            href="{{ url_for('goals') }}"
+            class="{% if active_page == 'goals' %}active{% endif %}"
+        >
             <span>◎</span>
             Goals
         </a>
@@ -51,10 +55,13 @@
             Gratitude
         </a>
 
-        <a href="#">
-            <span>◉</span>
-            Focus
-        </a>
+       <a
+    href="{{ url_for('focus') }}"
+    class="{% if active_page == 'focus' %}active{% endif %}"
+>
+    <span>◉</span>
+    Focus
+</a>
 
         <a href="#">
             <span>⚙</span>

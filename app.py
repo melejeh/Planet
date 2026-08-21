@@ -481,6 +481,12 @@ def dashboard():
 
         dashboard_tasks.append(task)
 
+    dashboard_goals = build_goal_list(connection, session["user_id"])
+    goal_total = len(dashboard_goals)
+    goal_completed = sum(
+        1 for goal in dashboard_goals if goal["is_complete"]
+    )
+
     connection.close()
 
     return render_template(
@@ -496,6 +502,8 @@ def dashboard():
         upcoming_assessment_count=upcoming_assessment_count,
         today_events=today_events,
         dashboard_tasks=dashboard_tasks,
+        goal_total=goal_total,
+        goal_completed=goal_completed,
         today_full=now.strftime(
             "%A, %B %-d, %Y"
         )
@@ -541,6 +549,8 @@ def semester():
 
         return redirect(url_for("semester"))
     connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+    create_goals_table(connection)
     connection.row_factory = sqlite3.Row
     semesters = connection.execute(
     """
@@ -637,7 +647,12 @@ def select_semester(semester_id):
 
     if semester is not None:
         session["active_semester_id"] = semester_id
-        return redirect(url_for("semester"))
+
+    # Keep the user on the page where they changed the semester.
+    if request.form.get("next") == "dashboard":
+        return redirect(url_for("dashboard"))
+
+    return redirect(url_for("semester"))
 
     return redirect(url_for("semester"))
 
@@ -1369,7 +1384,7 @@ def calendar():
 
             # The visible calendar runs from 6:00 AM to midnight.
             calendar_start = 6 *60
-            pixels_per_hour = 32
+            pixels_per_hour = 42
 
             event_data["top"] = max(
                 0,
@@ -1428,6 +1443,105 @@ def delete_event(event_id):
     connection.close()
 
     return redirect(request.referrer or url_for("calendar"))
+
+
+@app.route("/calendar/events/<int:event_id>/edit", methods=["POST"])
+def edit_event(event_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    title = request.form.get("title", "").strip()
+    event_date = request.form.get("event_date", "")
+    start_time = request.form.get("start_time", "")
+    end_time = request.form.get("end_time", "")
+    category = request.form.get("category", "personal")
+    notes = request.form.get("notes", "").strip()
+
+    if not title or not event_date or not start_time or end_time <= start_time:
+        return redirect(url_for("calendar", week=event_date or None))
+
+    connection = sqlite3.connect("planet.db")
+    connection.execute(
+        """
+        UPDATE events
+        SET title = ?, event_date = ?, start_time = ?, end_time = ?,
+            category = ?, notes = ?
+        WHERE id = ? AND user_id = ?
+        """,
+        (
+            title,
+            event_date,
+            start_time,
+            end_time,
+            category,
+            notes,
+            event_id,
+            session["user_id"]
+        )
+    )
+    connection.commit()
+    connection.close()
+
+    return redirect(url_for("calendar", week=event_date))
+
+
+@app.route("/calendar/events/<int:event_id>/move", methods=["POST"])
+def move_event(event_id):
+    if "user_id" not in session:
+        return {"success": False, "message": "You are not signed in."}, 401
+
+    move_data = request.get_json(silent=True) or {}
+    event_date = str(move_data.get("event_date", ""))
+    start_time = str(move_data.get("start_time", ""))
+
+    try:
+        datetime.strptime(event_date, "%Y-%m-%d")
+        new_start = datetime.strptime(start_time, "%H:%M")
+    except ValueError:
+        return {"success": False, "message": "That date or time is invalid."}, 400
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+    event = connection.execute(
+        """
+        SELECT start_time, end_time
+        FROM events
+        WHERE id = ? AND user_id = ?
+        """,
+        (event_id, session["user_id"])
+    ).fetchone()
+
+    if event is None:
+        connection.close()
+        return {"success": False, "message": "Event not found."}, 404
+
+    old_start = datetime.strptime(event["start_time"], "%H:%M")
+    old_end = datetime.strptime(event["end_time"], "%H:%M")
+    duration = old_end - old_start
+    new_end = new_start + duration
+
+    # Keep the event within the visible day.
+    if new_end.date() != new_start.date():
+        new_end = new_start.replace(hour=23, minute=59)
+
+    connection.execute(
+        """
+        UPDATE events
+        SET event_date = ?, start_time = ?, end_time = ?
+        WHERE id = ? AND user_id = ?
+        """,
+        (
+            event_date,
+            new_start.strftime("%H:%M"),
+            new_end.strftime("%H:%M"),
+            event_id,
+            session["user_id"]
+        )
+    )
+    connection.commit()
+    connection.close()
+
+    return {"success": True}
 @app.route("/todo", methods=["GET", "POST"])
 def todo():
     if "user_id" not in session:
@@ -1778,10 +1892,10 @@ def toggle_task(task_id):
         """
         UPDATE tasks
 
-        SET completed =
-            CASE
-                WHEN completed = 0 THEN 1
-                ELSE 0
+        SET completed = CASE WHEN completed = 0 THEN 1 ELSE 0 END,
+            completed_at = CASE
+                WHEN completed = 0 THEN CURRENT_TIMESTAMP
+                ELSE NULL
             END
 
         WHERE id = ?
@@ -1921,6 +2035,640 @@ def edit_task(task_id):
         courses=courses
     )
 
+def create_goals_table(connection):
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS goals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            goal_type TEXT NOT NULL DEFAULT 'manual',
+            target_value REAL NOT NULL,
+            current_value REAL NOT NULL DEFAULT 0,
+            unit TEXT NOT NULL DEFAULT 'units',
+            period TEXT NOT NULL DEFAULT 'custom',
+            deadline TEXT,
+            completed INTEGER NOT NULL DEFAULT 0,
+            course_id INTEGER,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (course_id) REFERENCES courses(id)
+        )
+        """
+    )
+
+    goal_columns = {
+        column["name"]
+        for column in connection.execute(
+            "PRAGMA table_info(goals)"
+        ).fetchall()
+    }
+
+    if "course_id" not in goal_columns:
+        connection.execute(
+            "ALTER TABLE goals ADD COLUMN course_id INTEGER"
+        )
+
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS goal_progress_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            goal_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            period_start TEXT NOT NULL,
+            current_value REAL NOT NULL DEFAULT 0,
+            completed INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(goal_id, period_start),
+            FOREIGN KEY (goal_id) REFERENCES goals(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+
+    task_tables = {
+        row["name"]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+
+    if "tasks" in task_tables:
+        task_columns = {
+            column["name"]
+            for column in connection.execute(
+                "PRAGMA table_info(tasks)"
+            ).fetchall()
+        }
+
+        if "completed_at" not in task_columns:
+            connection.execute(
+                "ALTER TABLE tasks ADD COLUMN completed_at TEXT"
+            )
+            connection.execute(
+                """
+                UPDATE tasks
+                SET completed_at = CURRENT_TIMESTAMP
+                WHERE completed = 1 AND completed_at IS NULL
+                """
+            )
+
+    connection.commit()
+
+
+def goal_period_bounds(connection, goal, user_id, now=None):
+    now = now or datetime.now()
+    period = goal["period"] or "custom"
+
+    if period == "weekly":
+        start = (now - timedelta(days=now.weekday())).replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+        return start, start + timedelta(days=7)
+
+    if period == "semester":
+        semester = None
+
+        if goal["course_id"]:
+            semester = connection.execute(
+                """
+                SELECT semesters.start_date, semesters.end_date
+                FROM courses
+                JOIN semesters ON semesters.id = courses.semester_id
+                WHERE courses.id = ? AND semesters.user_id = ?
+                """,
+                (goal["course_id"], user_id)
+            ).fetchone()
+
+        if semester is None and session.get("active_semester_id"):
+            semester = connection.execute(
+                """
+                SELECT start_date, end_date
+                FROM semesters
+                WHERE id = ? AND user_id = ?
+                """,
+                (session["active_semester_id"], user_id)
+            ).fetchone()
+
+        if semester:
+            start = datetime.strptime(
+                semester["start_date"], "%Y-%m-%d"
+            )
+            end = datetime.strptime(
+                semester["end_date"], "%Y-%m-%d"
+            ) + timedelta(days=1)
+            return start, end
+
+    try:
+        start = datetime.fromisoformat(goal["created_at"])
+    except (TypeError, ValueError):
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    end = None
+    if goal["deadline"]:
+        try:
+            end = datetime.strptime(
+                goal["deadline"], "%Y-%m-%d"
+            ) + timedelta(days=1)
+        except ValueError:
+            end = None
+
+    return start, end
+
+
+def build_goal_list(connection, user_id):
+    create_goals_table(connection)
+    now = datetime.now()
+
+    goal_rows = connection.execute(
+        """
+        SELECT goals.*, courses.code AS course_code,
+               courses.name AS course_name
+        FROM goals
+        LEFT JOIN courses ON courses.id = goals.course_id
+        WHERE goals.user_id = ?
+        ORDER BY goals.created_at DESC
+        """,
+        (user_id,)
+    ).fetchall()
+
+    table_names = {
+        row["name"]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    }
+
+    goal_list = []
+
+    for row in goal_rows:
+        goal = dict(row)
+        start, end = goal_period_bounds(
+            connection, row, user_id, now
+        )
+        period_start = start.date().isoformat()
+
+        progress_log = connection.execute(
+            """
+            SELECT current_value, completed
+            FROM goal_progress_logs
+            WHERE goal_id = ? AND user_id = ? AND period_start = ?
+            """,
+            (goal["id"], user_id, period_start)
+        ).fetchone()
+
+        if progress_log is None and (
+            float(goal["current_value"] or 0) > 0
+            or bool(goal["completed"])
+        ):
+            connection.execute(
+                """
+                INSERT INTO goal_progress_logs (
+                    goal_id, user_id, period_start,
+                    current_value, completed
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    goal["id"],
+                    user_id,
+                    period_start,
+                    float(goal["current_value"] or 0),
+                    int(bool(goal["completed"]))
+                )
+            )
+            progress_log = {
+                "current_value": float(goal["current_value"] or 0),
+                "completed": int(bool(goal["completed"]))
+            }
+            if goal["period"] in {"weekly", "semester"}:
+                connection.execute(
+                    """
+                    UPDATE goals
+                    SET current_value = 0, completed = 0
+                    WHERE id = ? AND user_id = ?
+                    """,
+                    (goal["id"], user_id)
+                )
+
+        manual_complete = bool(
+            progress_log["completed"] if progress_log else 0
+        )
+
+        if goal["goal_type"] == "study_hours":
+            parameters = [
+                user_id,
+                start.isoformat(timespec="minutes")
+            ]
+            end_filter = ""
+            course_filter = ""
+
+            if end is not None:
+                end_filter = " AND started_at < ?"
+                parameters.append(end.isoformat(timespec="minutes"))
+
+            if goal["course_id"]:
+                course_filter = " AND course_id = ?"
+                parameters.append(goal["course_id"])
+
+            current_value = 0
+            if "focus_sessions" in table_names:
+                current_value = connection.execute(
+                    f"""
+                    SELECT COALESCE(SUM(duration_minutes), 0)
+                    FROM focus_sessions
+                    WHERE user_id = ? AND started_at >= ?
+                    {end_filter}{course_filter}
+                    """,
+                    tuple(parameters)
+                ).fetchone()[0] / 60
+
+            if goal["course_name"]:
+                goal["source_label"] = (
+                    f"Updated from {goal['course_name']} Focus sessions"
+                )
+            else:
+                goal["source_label"] = "Updated from all Focus sessions"
+
+        elif goal["goal_type"] == "completed_tasks":
+            parameters = [user_id, start.isoformat(timespec="minutes")]
+            end_filter = ""
+            if end is not None:
+                end_filter = " AND completed_at < ?"
+                parameters.append(end.isoformat(timespec="minutes"))
+
+            current_value = 0
+            if "tasks" in table_names:
+                current_value = connection.execute(
+                    f"""
+                    SELECT COUNT(*) FROM tasks
+                    WHERE user_id = ? AND completed = 1
+                      AND completed_at >= ?{end_filter}
+                    """,
+                    tuple(parameters)
+                ).fetchone()[0]
+            goal["source_label"] = "Updated from completed to-dos"
+
+        else:
+            current_value = float(
+                progress_log["current_value"] if progress_log else 0
+            )
+            goal["source_label"] = "Progress updated by you"
+
+        target_value = float(goal["target_value"] or 0)
+        progress = (
+            current_value / target_value * 100
+            if target_value > 0 else 0
+        )
+
+        goal["current_display"] = round(current_value, 1)
+        goal["target_display"] = round(target_value, 1)
+        goal["progress_percent"] = min(100, round(progress, 1))
+        goal["is_complete"] = bool(
+            manual_complete or progress >= 100
+        )
+        goal["period_start"] = period_start
+        goal["period_label"] = {
+            "weekly": "This week",
+            "semester": "This semester",
+            "custom": "Overall"
+        }.get(goal["period"], goal["period"].title())
+
+        if goal["deadline"]:
+            try:
+                goal["deadline_label"] = datetime.strptime(
+                    goal["deadline"], "%Y-%m-%d"
+                ).strftime("%B %-d, %Y")
+            except ValueError:
+                goal["deadline_label"] = goal["deadline"]
+        else:
+            goal["deadline_label"] = None
+
+        goal_list.append(goal)
+
+    connection.commit()
+    return goal_list
+
+
+@app.route("/goals", methods=["GET", "POST"])
+def goals():
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+    create_goals_table(connection)
+
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        goal_type = request.form.get("goal_type", "manual")
+        period = request.form.get("period", "custom")
+        deadline = request.form.get("deadline") or None
+        course_id = request.form.get("course_id") or None
+
+        if goal_type not in {
+            "study_hours",
+            "completed_tasks",
+            "manual"
+        }:
+            goal_type = "manual"
+
+        if period not in {"weekly", "semester", "custom"}:
+            period = "custom"
+
+        try:
+            target_value = float(
+                request.form.get("target_value") or 0
+            )
+            current_value = float(
+                request.form.get("current_value") or 0
+            )
+        except ValueError:
+            target_value = 0
+            current_value = 0
+
+        target_value = max(0, target_value)
+        current_value = max(0, current_value)
+
+        if goal_type == "study_hours":
+            unit = "hours"
+            current_value = 0
+            if course_id:
+                owned_course = connection.execute(
+                    """
+                    SELECT courses.id FROM courses
+                    JOIN semesters ON semesters.id = courses.semester_id
+                    WHERE courses.id = ? AND semesters.user_id = ?
+                    """,
+                    (course_id, session["user_id"])
+                ).fetchone()
+                if owned_course is None:
+                    course_id = None
+        elif goal_type == "completed_tasks":
+            unit = "tasks"
+            current_value = 0
+            course_id = None
+        else:
+            course_id = None
+            unit = (
+                request.form.get("unit", "units").strip()
+                or "units"
+            )[:30]
+
+        if title and target_value > 0:
+            connection.execute(
+                """
+                INSERT INTO goals (
+                    user_id,
+                    title,
+                    goal_type,
+                    target_value,
+                    current_value,
+                    unit,
+                    period,
+                    deadline,
+                    course_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session["user_id"],
+                    title,
+                    goal_type,
+                    target_value,
+                    current_value,
+                    unit,
+                    period,
+                    deadline,
+                    course_id
+                )
+            )
+            connection.commit()
+
+        connection.close()
+        return redirect(url_for("goals"))
+
+    goal_list = build_goal_list(connection, session["user_id"])
+    courses = connection.execute(
+        """
+        SELECT courses.id, courses.code, courses.name
+        FROM courses
+        JOIN semesters ON semesters.id = courses.semester_id
+        WHERE semesters.user_id = ?
+        ORDER BY courses.name
+        """,
+        (session["user_id"],)
+    ).fetchall()
+    connection.close()
+
+    completed_count = sum(
+        1 for goal in goal_list if goal["is_complete"]
+    )
+    automatic_count = sum(
+        1 for goal in goal_list
+        if goal["goal_type"] != "manual"
+    )
+
+    return render_template(
+        "goals.html",
+        name=session["first_name"],
+        goals=goal_list,
+        courses=courses,
+        completed_count=completed_count,
+        automatic_count=automatic_count
+    )
+
+
+@app.route("/goals/<int:goal_id>/progress", methods=["POST"])
+def update_goal_progress(goal_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    try:
+        current_value = max(
+            0,
+            float(request.form.get("current_value") or 0)
+        )
+    except ValueError:
+        current_value = 0
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+    create_goals_table(connection)
+    goal = connection.execute(
+        "SELECT * FROM goals WHERE id = ? AND user_id = ?",
+        (goal_id, session["user_id"])
+    ).fetchone()
+    if goal and goal["goal_type"] == "manual":
+        period_start = goal_period_bounds(
+            connection, goal, session["user_id"]
+        )[0].date().isoformat()
+        connection.execute(
+            """
+            INSERT INTO goal_progress_logs (
+                goal_id, user_id, period_start, current_value, completed
+            ) VALUES (?, ?, ?, ?, 0)
+            ON CONFLICT(goal_id, period_start) DO UPDATE SET
+                current_value = excluded.current_value,
+                completed = 0,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (goal_id, session["user_id"], period_start, current_value)
+        )
+    connection.execute(
+        """
+        UPDATE goals
+        SET current_value = ?, completed = 0
+        WHERE id = ?
+          AND user_id = ?
+          AND goal_type = 'manual'
+        """,
+        (current_value, goal_id, session["user_id"])
+    )
+    connection.commit()
+    connection.close()
+    return redirect(url_for("goals", _anchor=f"goal-{goal_id}"))
+
+
+@app.route("/goals/<int:goal_id>/edit", methods=["POST"])
+def edit_goal(goal_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    title = request.form.get("title", "").strip()
+    period = request.form.get("period", "custom")
+    if period not in {"weekly", "semester", "custom"}:
+        period = "custom"
+    deadline = request.form.get("deadline") or None
+    course_id = request.form.get("course_id") or None
+    unit = (
+        request.form.get("unit", "units").strip()
+        or "units"
+    )[:30]
+
+    try:
+        target_value = max(
+            0,
+            float(request.form.get("target_value") or 0)
+        )
+    except ValueError:
+        target_value = 0
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+    create_goals_table(connection)
+    goal = connection.execute(
+        "SELECT * FROM goals WHERE id = ? AND user_id = ?",
+        (goal_id, session["user_id"])
+    ).fetchone()
+
+    if goal and title and target_value > 0:
+        if goal["goal_type"] == "study_hours":
+            unit = "hours"
+            if course_id:
+                owned_course = connection.execute(
+                    """
+                    SELECT courses.id FROM courses
+                    JOIN semesters ON semesters.id = courses.semester_id
+                    WHERE courses.id = ? AND semesters.user_id = ?
+                    """,
+                    (course_id, session["user_id"])
+                ).fetchone()
+                if owned_course is None:
+                    course_id = None
+        elif goal["goal_type"] == "completed_tasks":
+            unit = "tasks"
+            course_id = None
+        else:
+            course_id = None
+
+        connection.execute(
+            """
+            UPDATE goals
+            SET title = ?, target_value = ?, unit = ?,
+                period = ?, deadline = ?, course_id = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (
+                title,
+                target_value,
+                unit,
+                period,
+                deadline,
+                course_id,
+                goal_id,
+                session["user_id"]
+            )
+        )
+        connection.commit()
+
+    connection.close()
+    return redirect(url_for("goals", _anchor=f"goal-{goal_id}"))
+
+
+@app.route("/goals/<int:goal_id>/toggle", methods=["POST"])
+def toggle_goal(goal_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+    create_goals_table(connection)
+    goal = connection.execute(
+        "SELECT * FROM goals WHERE id = ? AND user_id = ?",
+        (goal_id, session["user_id"])
+    ).fetchone()
+    if goal:
+        period_start = goal_period_bounds(
+            connection, goal, session["user_id"]
+        )[0].date().isoformat()
+        current = connection.execute(
+            """
+            SELECT completed FROM goal_progress_logs
+            WHERE goal_id = ? AND user_id = ? AND period_start = ?
+            """,
+            (goal_id, session["user_id"], period_start)
+        ).fetchone()
+        completed = 0 if current and current["completed"] else 1
+        connection.execute(
+            """
+            INSERT INTO goal_progress_logs (
+                goal_id, user_id, period_start, current_value, completed
+            ) VALUES (?, ?, ?, 0, ?)
+            ON CONFLICT(goal_id, period_start) DO UPDATE SET
+                completed = excluded.completed,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (goal_id, session["user_id"], period_start, completed)
+        )
+    connection.commit()
+    connection.close()
+    return redirect(url_for("goals", _anchor=f"goal-{goal_id}"))
+
+
+@app.route("/goals/<int:goal_id>/delete", methods=["POST"])
+def delete_goal(goal_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    create_goals_table(connection)
+    connection.execute(
+        "DELETE FROM goal_progress_logs WHERE goal_id = ? AND user_id = ?",
+        (goal_id, session["user_id"])
+    )
+    connection.execute(
+        "DELETE FROM goals WHERE id = ? AND user_id = ?",
+        (goal_id, session["user_id"])
+    )
+    connection.commit()
+    connection.close()
+    return redirect(url_for("goals"))
+
+
 @app.route("/focus", methods=["GET", "POST"])
 def focus():
     if "user_id" not in session:
@@ -1940,6 +2688,7 @@ def focus():
             started_at TEXT NOT NULL,
             ended_at TEXT,
             duration_minutes INTEGER NOT NULL DEFAULT 0,
+            duration_seconds INTEGER NOT NULL DEFAULT 0,
             source TEXT NOT NULL DEFAULT 'timer',
             notes TEXT,
             technique TEXT NOT NULL DEFAULT 'stopwatch',
@@ -1974,6 +2723,15 @@ def focus():
             """
             ALTER TABLE focus_sessions
             ADD COLUMN planned_minutes INTEGER
+            """
+        )
+
+    if "duration_seconds" not in focus_columns:
+        connection.execute(
+            """
+            ALTER TABLE focus_sessions
+            ADD COLUMN duration_seconds INTEGER
+            NOT NULL DEFAULT 0
             """
         )
 
@@ -2077,12 +2835,13 @@ def focus():
                     started_at,
                     ended_at,
                     duration_minutes,
+                    duration_seconds,
                     source,
                     notes,
                     technique,
                     planned_minutes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     session["user_id"],
@@ -2095,6 +2854,7 @@ def focus():
                         timespec="minutes"
                     ),
                     duration_minutes,
+                    duration_minutes * 60,
                     "manual",
                     notes,
                     "manual",
@@ -2172,6 +2932,16 @@ def focus():
             or 0
         )
 
+        duration_seconds = int(
+            row["duration_seconds"]
+            or 0
+        )
+
+        # Older rows predate duration_seconds, so derive
+        # their exact duration from the stored minutes.
+        if duration_seconds <= 0 and duration_minutes > 0:
+            duration_seconds = duration_minutes * 60
+
         duration_hours = (
             duration_minutes // 60
         )
@@ -2180,7 +2950,10 @@ def focus():
             duration_minutes % 60
         )
 
-        if duration_hours and remaining_minutes:
+        if duration_seconds < 60:
+            duration_label = f"{duration_seconds}s"
+
+        elif duration_hours and remaining_minutes:
             duration_label = (
                 f"{duration_hours}h "
                 f"{remaining_minutes}m"
@@ -2246,7 +3019,7 @@ def focus():
         microsecond=0
     )
 
-    weekly_minutes = 0
+    weekly_seconds = 0
 
     for focus_session in focus_sessions:
         session_started_at = (
@@ -2256,13 +3029,26 @@ def focus():
         )
 
         if session_started_at >= start_of_week:
-            weekly_minutes += int(
-                focus_session["duration_minutes"]
+            stored_seconds = int(
+                focus_session.get("duration_seconds")
                 or 0
             )
 
+            if stored_seconds <= 0:
+                stored_seconds = int(
+                    focus_session["duration_minutes"]
+                    or 0
+                ) * 60
+
+            weekly_seconds += stored_seconds
+
+    weekly_minutes = round(
+        weekly_seconds / 60,
+        1
+    )
+
     weekly_hours = round(
-        weekly_minutes / 60,
+        weekly_seconds / 3600,
         1
     )
 
@@ -2541,18 +3327,15 @@ def save_focus_timer():
         elapsed_seconds
     )
 
-    if elapsed_seconds == 0:
+    if elapsed_seconds < 1:
         return {
             "success": False,
-            "message": "The timer has not started yet."
+            "message": "Start the timer before saving."
         }, 400
 
-    # Round partial minutes upward so a short test
-    # session still appears in the study history.
-    duration_minutes = max(
-        1,
-        (elapsed_seconds + 59) // 60
-    )
+    # Record completed minutes without inflating a few
+    # seconds into a full minute of study time.
+    duration_minutes = elapsed_seconds // 60
 
     ended_at = datetime.now()
 
@@ -2595,24 +3378,26 @@ def save_focus_timer():
                 started_at,
                 ended_at,
                 duration_minutes,
+                duration_seconds,
                 source,
                 notes,
                 technique,
                 planned_minutes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 session["user_id"],
                 course_id,
                 title or "Focus session",
                 started_at.isoformat(
-                    timespec="minutes"
+                    timespec="seconds"
                 ),
                 ended_at.isoformat(
-                    timespec="minutes"
+                    timespec="seconds"
                 ),
                 duration_minutes,
+                elapsed_seconds,
                 "timer",
                 "",
                 technique,
@@ -2636,9 +3421,9 @@ def save_focus_timer():
     return {
         "success": True,
         "message": "Focus session saved.",
-        "duration_minutes": duration_minutes
+        "duration_minutes": duration_minutes,
+        "duration_seconds": elapsed_seconds
     }
 
 if __name__ == "__main__":
  app.run(debug=True, port=5001)
- 

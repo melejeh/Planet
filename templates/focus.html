@@ -706,6 +706,124 @@
     let timerIsSaving = false;
     let timerPhase = "focus";
     let focusSessionSaved = false;
+    let timerStatus = "idle";
+    let timerUpdatedAt = Date.now();
+
+    const timerStorageKey = (
+        "planet-focus-timer:{{ session.get('user_id', 'guest') }}"
+    );
+
+    function clearStoredTimer() {
+        window.localStorage.removeItem(timerStorageKey);
+    }
+
+    function persistTimer() {
+        if (timerStatus === "idle") {
+            clearStoredTimer();
+            return;
+        }
+
+        window.localStorage.setItem(
+            timerStorageKey,
+            JSON.stringify({
+                status: timerStatus,
+                updatedAt: timerUpdatedAt,
+                technique: selectedTechnique(),
+                title: timerTitle.value,
+                courseId: timerCourse.value,
+                customHours: customFocusHours.value,
+                customMinutes: customFocusMinutes.value,
+                customBreak: customBreakMinutes.value,
+                phase: timerPhase,
+                elapsedFocusSeconds: elapsedFocusSeconds,
+                remainingSeconds: remainingSeconds,
+                focusSessionSaved: focusSessionSaved
+            })
+        );
+    }
+
+    function restoreTimer() {
+        let storedState = null;
+
+        try {
+            storedState = JSON.parse(
+                window.localStorage.getItem(timerStorageKey)
+            );
+        } catch (error) {
+            clearStoredTimer();
+        }
+
+        if (!storedState || storedState.status === "idle") {
+            prepareSelectedTechnique();
+            return;
+        }
+
+        techniqueSelect.value = storedState.technique || "stopwatch";
+        timerTitle.value = storedState.title || "";
+        timerCourse.value = storedState.courseId || "";
+        customFocusHours.value = storedState.customHours || 0;
+        customFocusMinutes.value = storedState.customMinutes || 30;
+        customBreakMinutes.value = storedState.customBreak || 5;
+
+        timerPhase = storedState.phase || "focus";
+        elapsedFocusSeconds = Number(storedState.elapsedFocusSeconds) || 0;
+        remainingSeconds = Number(storedState.remainingSeconds) || 0;
+        focusSessionSaved = Boolean(storedState.focusSessionSaved);
+        timerStatus = storedState.status;
+        timerHasStarted = true;
+
+        techniqueDescription.textContent = timerTechniques[selectedTechnique()].description;
+        customTimeFields.hidden = selectedTechnique() !== "custom";
+        lockTimerFields();
+
+        if (timerStatus === "running") {
+            const secondsAway = Math.max(
+                0,
+                Math.floor((Date.now() - Number(storedState.updatedAt || Date.now())) / 1000)
+            );
+
+            if (timerPhase === "break") {
+                remainingSeconds = Math.max(0, remainingSeconds - secondsAway);
+            } else if (isStopwatch()) {
+                elapsedFocusSeconds += secondsAway;
+            } else {
+                const focusedSeconds = Math.min(secondsAway, remainingSeconds);
+                elapsedFocusSeconds += focusedSeconds;
+                remainingSeconds = Math.max(0, remainingSeconds - focusedSeconds);
+            }
+        }
+
+        timerUpdatedAt = Date.now();
+        timerCard.classList.toggle("timer-break-mode", timerPhase === "break");
+        timerPhaseLabel.textContent = timerPhase === "break"
+            ? "Break"
+            : (isStopwatch() ? "Stopwatch" : "Focus · " + timerTechniques[selectedTechnique()].label);
+        updateTimerDisplay();
+
+        if (timerPhase === "break" && remainingSeconds <= 0) {
+            clearStoredTimer();
+            completeBreak();
+            return;
+        }
+
+        if (timerPhase === "focus" && !isStopwatch() && remainingSeconds <= 0) {
+            timerStatus = "paused";
+            persistTimer();
+            completeFocusCountdown();
+            return;
+        }
+
+        if (timerStatus === "running") {
+            timerInterval = null;
+            startTimer();
+        } else {
+            startButton.disabled = false;
+            startButton.textContent = timerPhase === "break" ? "Continue break" : "Continue focus";
+            pauseButton.disabled = true;
+            updateFinishButtonState();
+            timerMessage.textContent = timerPhase === "break" ? "Break paused." : "Timer paused. Continue or finish and save.";
+        }
+    }
 
 
     function selectedTechnique() {
@@ -843,6 +961,7 @@
         );
 
         timerPhase = "focus";
+        timerStatus = "idle";
         elapsedFocusSeconds = 0;
         focusSessionSaved = false;
 
@@ -914,6 +1033,24 @@
     }
 
 
+    function updateFinishButtonState() {
+        if (timerPhase === "break") {
+            finishButton.disabled = false;
+            finishButton.textContent = "Skip break";
+            return;
+        }
+
+        const canSave = (
+            elapsedFocusSeconds > 0
+            && !timerIsSaving
+            && !focusSessionSaved
+        );
+
+        finishButton.disabled = !canSave;
+        finishButton.textContent = "Finish & save";
+    }
+
+
     function startTimer() {
         if (
             timerInterval
@@ -935,7 +1072,10 @@
         }
 
         timerHasStarted = true;
+        timerStatus = "running";
+        timerUpdatedAt = Date.now();
         lockTimerFields();
+        persistTimer();
 
         timerInterval = window.setInterval(
             function () {
@@ -948,6 +1088,9 @@
                         completeBreak();
                     }
 
+                    timerUpdatedAt = Date.now();
+                    persistTimer();
+
                     return;
                 }
 
@@ -958,6 +1101,7 @@
                 }
 
                 updateTimerDisplay();
+                updateFinishButtonState();
 
                 if (
                     !isStopwatch()
@@ -965,6 +1109,9 @@
                 ) {
                     completeFocusCountdown();
                 }
+
+                timerUpdatedAt = Date.now();
+                persistTimer();
             },
             1000
         );
@@ -973,7 +1120,7 @@
         pauseButton.disabled = false;
 
         if (timerPhase === "focus") {
-            finishButton.disabled = false;
+            updateFinishButtonState();
 
             timerMessage.textContent = (
                 "Focus session in progress."
@@ -995,6 +1142,9 @@
         }
 
         stopInterval();
+        timerStatus = "paused";
+        timerUpdatedAt = Date.now();
+        persistTimer();
 
         startButton.disabled = false;
         pauseButton.disabled = true;
@@ -1007,6 +1157,8 @@
             timerMessage.textContent = (
                 "Timer paused. Continue or finish and save."
             );
+
+            updateFinishButtonState();
         } else {
             startButton.textContent = (
                 "Continue break"
@@ -1023,7 +1175,7 @@
         reloadAfterSaving
     ) {
         if (
-            elapsedFocusSeconds <= 0
+            elapsedFocusSeconds < 1
             || focusSessionSaved
             || timerIsSaving
         ) {
@@ -1084,6 +1236,7 @@
             timerIsSaving = false;
 
             if (reloadAfterSaving) {
+                clearStoredTimer();
                 window.location.reload();
 
                 return true;
@@ -1094,10 +1247,11 @@
         } catch (error) {
             timerIsSaving = false;
 
-            finishButton.disabled = false;
-            finishButton.textContent = (
-                "Finish & save"
-            );
+            timerStatus = "paused";
+            startButton.disabled = false;
+            startButton.textContent = "Continue focus";
+            pauseButton.disabled = true;
+            updateFinishButtonState();
 
             resetButton.disabled = false;
 
@@ -1112,6 +1266,7 @@
 
     async function completeFocusCountdown() {
         stopInterval();
+        timerStatus = "paused";
 
         remainingSeconds = 0;
         updateTimerDisplay();
@@ -1147,6 +1302,8 @@
         timerPhase = "break";
         timerHasStarted = false;
         remainingSeconds = breakMinutes * 60;
+        timerStatus = "paused";
+        timerUpdatedAt = Date.now();
 
         timerCard.classList.add(
             "timer-break-mode"
@@ -1171,11 +1328,13 @@
             + breakMinutes
             + "-minute break."
         );
+        persistTimer();
     }
 
 
     function completeBreak() {
         stopInterval();
+        clearStoredTimer();
 
         remainingSeconds = 0;
         updateTimerDisplay();
@@ -1195,13 +1354,14 @@
 
     async function finishTimer() {
         if (timerPhase === "break") {
+            clearStoredTimer();
             window.location.reload();
             return;
         }
 
         if (
             !timerHasStarted
-            || elapsedFocusSeconds <= 0
+            || elapsedFocusSeconds < 1
         ) {
             timerMessage.textContent = (
                 "Start the timer before saving."
@@ -1211,6 +1371,18 @@
         }
 
         stopInterval();
+
+        // Freeze and persist the stopped state immediately. Without this,
+        // pagehide can store the session as "running" while the save request
+        // reloads the page, which makes the restored timer continue ticking.
+        timerStatus = "paused";
+        timerUpdatedAt = Date.now();
+        persistTimer();
+        updateTimerDisplay();
+
+        timerMessage.textContent = (
+            "Finishing and saving your focus session..."
+        );
 
         startButton.disabled = true;
         pauseButton.disabled = true;
@@ -1224,6 +1396,7 @@
 
     function resetTimer() {
         stopInterval();
+        clearStoredTimer();
 
         if (
             timerPhase === "break"
@@ -1240,6 +1413,7 @@
         timerIsSaving = false;
         focusSessionSaved = false;
         timerPhase = "focus";
+        timerStatus = "idle";
 
         unlockTimerFields();
         resetButton.disabled = false;
@@ -1295,7 +1469,17 @@
         resetTimer
     );
 
-    prepareSelectedTechnique();
+    window.addEventListener("pagehide", function () {
+        if (timerIsSaving || focusSessionSaved) {
+            clearStoredTimer();
+            return;
+        }
+
+        timerUpdatedAt = Date.now();
+        persistTimer();
+    });
+
+    restoreTimer();
 </script>
 </body>
 </html>

@@ -16,6 +16,7 @@
                 <div class="dashboard-topbar-left">
                     {% if semesters %}
                         <form class="semester-switcher" method="POST">
+                            <input type="hidden" name="next" value="dashboard">
                             <label for="dashboard-semester">Semester</label>
                             <select id="dashboard-semester" onchange="if (this.value) { this.form.action = this.value; this.form.submit(); }">
                                 <option value="" disabled {% if not session.get("active_semester_id") %}selected{% endif %}>Choose semester</option>
@@ -67,11 +68,19 @@
                 {% endif %}
 
                 <section class="summary-grid dashboard-summary-grid">
-                    <article class="summary-card">
-                        <span>Events today</span>
-                        <strong>{{ today_events|length }}</strong>
-                        <small>On your calendar</small>
-                    </article>
+                    <a class="summary-card dashboard-goal-summary" href="{{ url_for('goals') }}">
+                        <span>Goals completed</span>
+                        <strong>{{ goal_completed }}/{{ goal_total }}</strong>
+                        <small>
+                            {% if goal_total == 0 %}
+                                Add your first goal
+                            {% elif goal_completed == goal_total %}
+                                All goals completed
+                            {% else %}
+                                Across your active goals
+                            {% endif %}
+                        </small>
+                    </a>
                     <article class="summary-card">
                         <span>Upcoming assessments</span>
                         <strong>{{ upcoming_assessment_count }}</strong>
