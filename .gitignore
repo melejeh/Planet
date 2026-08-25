@@ -4,3 +4,19 @@ __pycache__/
 planet.db
 .env
 .DS_Store
+# Databases
+*.db
+
+# Local backups
+app_old.py
+
+# Environment variables
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
