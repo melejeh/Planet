@@ -853,12 +853,58 @@ def confirm_timetable_import():
 def _course_outline_assessments(text):
     """Extract reviewable assessment rows from a plain-text course outline."""
     rows = []
+    assessment_terms = (
+        "assignment", "quiz", "test", "midterm", "final", "exam", "laboratory", "lab",
+        "tutorial", "project", "presentation", "participation", "attendance", "essay",
+        "report", "reflection", "case study", "portfolio", "discussion", "homework",
+        "worksheet", "problem set", "proposal", "capstone", "practical", "simulation",
+        "coding exercise", "coursework", "term work"
+    )
+    blocked_terms = (
+        "prerequisite", "anti-requisite", "corequisite", "academic consideration",
+        "accommodation", "policy", "textbook", "course material", "learning outcome",
+        "support service", "scholastic offence", "copyright", "contact information"
+    )
+
+    def likely_assessment(name):
+        lowered = name.lower()
+        return (
+            2 < len(name) <= 120
+            and not any(term in lowered for term in blocked_terms)
+            and any(term in lowered for term in assessment_terms)
+        )
+
     evaluation = re.search(
-        r"(?:Method\s+of\s+)?Evaluation\s*:(.*?)(?:\s+Notes\s*:|To obtain a passing grade|Course Component Details)",
+        r"(?:(?:Method\s+of\s+)?Evaluation\s*:|"
+        r"Methods\s+of\s+Evaluation\s+Grading\s+Scheme\s+and\s+Assessment\s+Dates|"
+        r"Grading\s+Scheme\s+and\s+Assessment\s+Dates|"
+        r"Assessment\s+(?:and|&)\s+Evaluation\s*:|Grading\s+Breakdown\s*:|"
+        r"Grade\s+Breakdown\s*:|Assessment\s+Breakdown\s*:|Course\s+Assessment\s*:|"
+        r"Course\s+Components\s*:|Marking\s+Scheme\s*:|Distribution\s+of\s+Marks\s*:|"
+        r"Basis\s+of\s+Evaluation\s*:|Evaluation\s+Criteria\s*:|"
+        r"Assessment\s+Summary\s*:|Assessment\s+Plan\s*:)\s*(.*?)"
+        r"(?:\s+Notes\s*:|To obtain a passing grade|Course Component Details|I will post a sheet|"
+        r"Use of Generative AI Tools|General information about missed coursework|Course Policies|"
+        r"Academic Consideration|Missed Assessments|Assessment Flexibility|Academic Integrity|"
+        r"Scholastic Offences|Accommodation|Support Services|Required Materials|Course Materials|"
+        r"Learning Outcomes|Attendance Policy|Late Policy|Submission Policy|Additional Statements|"
+        r"Copyright|Contact Information)",
         text,
         flags=re.IGNORECASE | re.DOTALL
     )
     evaluation_text = evaluation.group(1) if evaluation else text
+    evaluation_text = re.sub(
+        r"^.*?overall course grade will be calculated as listed below\s*:\s*",
+        "",
+        evaluation_text,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+    evaluation_text = re.sub(
+        r"(\d+(?:\.\d+)?\s*%)\s+each\s+",
+        r"\1\n",
+        evaluation_text,
+        flags=re.IGNORECASE
+    )
     evaluation_text = re.sub(
         r"(%(?:\s*/\s*\d+(?:\.\d+)?\s*%)?)\s+(?=[A-Z][A-Za-z])",
         r"\1\n",
@@ -878,7 +924,7 @@ def _course_outline_assessments(text):
                 r"^(\d+(?:\.\d+)?)\s*%\s*(?:/\s*(\d+(?:\.\d+)?)\s*%)?$",
                 line
             )
-            if standalone_weight and pending_name:
+            if standalone_weight and pending_name and likely_assessment(pending_name):
                 rows.append({
                     "name": pending_name,
                     "weight": standalone_weight.group(1),
@@ -892,7 +938,7 @@ def _course_outline_assessments(text):
                 pending_name = re.sub(r"\s+\)", ")", line.strip(" :-"))
             continue
         name = re.sub(r"\s+\)", ")", match.group(1).strip(" :-"))
-        if name.lower() in {"course component", "weight"}:
+        if name.lower() in {"course component", "weight"} or not likely_assessment(name):
             continue
         rows.append({
             "name": name,
@@ -946,6 +992,7 @@ def import_course_outline(course_id):
 
     assessments = []
     error = None
+    warning = None
     if request.method == "POST":
         extracted_text = request.form.get("extracted_text", "").strip()
         outline = request.files.get("course_outline")
@@ -975,12 +1022,29 @@ def import_course_outline(course_id):
                 except Exception:
                     error = "Planet could not read that PDF. Try exporting it again as a text-based PDF."
 
+    if assessments:
+        primary_total = round(
+            sum(float(row["weight"]) for row in assessments),
+            1
+        )
+        if primary_total < 95 or primary_total > 105:
+            warning = (
+                f"Planet detected {primary_total:g}% of course weight, not approximately 100%. "
+                "It may have missed a component, or a weight marked 'each' may need to be split or multiplied."
+            )
+        elif len(assessments) > 12:
+            warning = (
+                "Planet found an unusually large number of assessment rows. "
+                "Review them carefully before importing."
+            )
+
     return render_template(
         "import_course_outline.html",
         name=session["first_name"],
         course=course,
         assessments=assessments,
-        error=error
+        error=error,
+        warning=warning
     )
 
 
