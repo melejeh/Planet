@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Gratitude | Planet</title>
+</head>
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        {% set active_page = "gratitude" %}
+        {% include "sidebar.html" %}
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <input type="search" placeholder="Search your notebook..." id="gratitude-search">
+            </header>
+
+            <section class="gratitude-content">
+                <header class="gratitude-heading">
+                    <div>
+                        <p class="eyebrow">YOUR NOTEBOOK</p>
+                        <h1>Gratitude</h1>
+                        <p>A quiet place for the people, moments and little joys you want to remember.</p>
+                    </div>
+                </header>
+
+                {% if saved %}<div class="gratitude-message success" role="status">{{ saved }}</div>{% endif %}
+                {% if error %}<div class="gratitude-message error" role="alert">{{ error }}</div>{% endif %}
+
+                <div class="gratitude-layout">
+                    <article class="gratitude-compose-card">
+                        <p class="eyebrow">TODAY'S NOTE</p>
+                        <h2>What are you grateful for?</h2>
+
+                        <form method="POST" action="{{ url_for('gratitude') }}" class="gratitude-form">
+                            <label>
+                                Date
+                                <input type="date" name="entry_date" value="{{ today }}" required>
+                            </label>
+
+                            <fieldset>
+                                <legend>Choose a label</legend>
+                                <div class="gratitude-label-options">
+                                    {% for value, label in labels.items() %}
+                                        <label>
+                                            <input type="radio" name="label" value="{{ value }}" {% if value == 'small-joys' %}checked{% endif %}>
+                                            <span>{{ label }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </fieldset>
+
+                            <label>
+                                Title <span>(optional)</span>
+                                <input type="text" name="title" maxlength="100" placeholder="A lovely part of today">
+                            </label>
+
+                            <label>
+                                Your note
+                                <textarea name="note" rows="7" placeholder="Today, I’m grateful for..." required></textarea>
+                            </label>
+
+                            <button type="submit" class="primary-button">Save to my notebook</button>
+                        </form>
+                    </article>
+
+                    <section class="gratitude-notebook">
+                        <div class="gratitude-notebook-heading">
+                            <div>
+                                <p class="eyebrow">SAVED MOMENTS</p>
+                                <h2>Your notebook</h2>
+                            </div>
+                            <span>{{ entries|length }} {% if entries|length == 1 %}entry{% else %}entries{% endif %}</span>
+                        </div>
+
+                        {% if entries %}
+                            <div class="gratitude-entry-list" id="gratitude-entry-list">
+                                {% for entry in entries %}
+                                    <article class="gratitude-entry" data-search="{{ (entry['title'] ~ ' ' ~ entry['note'] ~ ' ' ~ labels[entry['label']])|lower|e }}">
+                                        <div class="gratitude-entry-top">
+                                            <span class="gratitude-entry-label">{{ labels[entry['label']] }}</span>
+                                            <time datetime="{{ entry['entry_date'] }}">{{ entry['entry_date'] }}</time>
+                                        </div>
+                                        <h3>{{ entry['title'] }}</h3>
+                                        <p>{{ entry['note'] }}</p>
+                                        <div class="gratitude-entry-actions">
+                                            <button
+                                                type="button"
+                                                class="text-button edit-gratitude-button"
+                                                data-action="{{ url_for('edit_gratitude', entry_id=entry['id']) }}"
+                                                data-date="{{ entry['entry_date'] }}"
+                                                data-label="{{ entry['label'] }}"
+                                                data-title="{{ entry['title']|e }}"
+                                                data-note="{{ entry['note']|e }}"
+                                            >Edit</button>
+                                            <form method="POST" action="{{ url_for('delete_gratitude', entry_id=entry['id']) }}" onsubmit="return confirm('Delete this gratitude entry?');">
+                                                <button type="submit" class="text-button danger-text-button">Delete</button>
+                                            </form>
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="gratitude-empty">
+                                <span>♡</span>
+                                <h3>Your notebook is waiting.</h3>
+                                <p>Your saved gratitude entries will appear here.</p>
+                            </div>
+                        {% endif %}
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="study-settings-overlay" id="gratitude-edit-overlay" hidden>
+        <section class="study-settings-modal gratitude-edit-modal" role="dialog" aria-modal="true" aria-labelledby="gratitude-edit-title">
+            <button type="button" class="study-settings-close" id="close-gratitude-edit" aria-label="Close edit form">×</button>
+            <p class="eyebrow">EDIT ENTRY</p>
+            <h2 id="gratitude-edit-title">Update this moment</h2>
+            <form method="POST" class="gratitude-form" id="gratitude-edit-form">
+                <label>Date<input type="date" name="entry_date" id="gratitude-edit-date" required></label>
+                <label>Label
+                    <select name="label" id="gratitude-edit-label">
+                        {% for value, label in labels.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label>Title <span>(optional)</span><input type="text" name="title" id="gratitude-edit-entry-title" maxlength="100"></label>
+                <label>Your note<textarea name="note" id="gratitude-edit-note" rows="6" required></textarea></label>
+                <button type="submit" class="primary-button">Save changes</button>
+            </form>
+        </section>
+    </div>
+
+    <script>
+        const editOverlay = document.getElementById("gratitude-edit-overlay");
+        const editForm = document.getElementById("gratitude-edit-form");
+
+        document.querySelectorAll(".edit-gratitude-button").forEach((button) => {
+            button.addEventListener("click", () => {
+                editForm.action = button.dataset.action;
+                document.getElementById("gratitude-edit-date").value = button.dataset.date;
+                document.getElementById("gratitude-edit-label").value = button.dataset.label;
+                document.getElementById("gratitude-edit-entry-title").value = button.dataset.title;
+                document.getElementById("gratitude-edit-note").value = button.dataset.note;
+                editOverlay.hidden = false;
+                document.body.classList.add("modal-open");
+            });
+        });
+
+        function closeGratitudeEdit() {
+            editOverlay.hidden = true;
+            document.body.classList.remove("modal-open");
+        }
+
+        document.getElementById("close-gratitude-edit").addEventListener("click", closeGratitudeEdit);
+        editOverlay.addEventListener("click", (event) => {
+            if (event.target === editOverlay) closeGratitudeEdit();
+        });
+
+        document.getElementById("gratitude-search").addEventListener("input", (event) => {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll(".gratitude-entry").forEach((entry) => {
+                entry.hidden = !entry.dataset.search.includes(query);
+            });
+        });
+    </script>
+</body>
+</html>

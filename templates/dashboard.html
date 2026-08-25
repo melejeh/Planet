@@ -30,7 +30,7 @@
                     {% else %}
                         <a class="create-semester-link" href="{{ url_for('semester') }}">＋ Create semester</a>
                     {% endif %}
-                    <input type="search" placeholder="Search your planet...">
+                    <input id="dashboard-search" type="search" placeholder="Search your planet...">
                 </div>
                 <button type="button">＋ Add new</button>
             </header>
@@ -96,6 +96,34 @@
                         <strong>{% if projected_average is not none %}{{ projected_average }}%{% else %}—{% endif %}</strong>
                         <small>{% if projected_average is not none %}Across your graded courses{% else %}Add grades to calculate{% endif %}</small>
                     </article>
+                </section>
+
+                <section class="dashboard-card dashboard-quick-links-card">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">SHORTCUTS</p>
+                            <h2>Quick links</h2>
+                        </div>
+                        <a class="text-button" href="{{ url_for('settings') }}#quick-links">Manage →</a>
+                    </div>
+
+                    {% if quick_links %}
+                        <div class="dashboard-quick-links">
+                            {% for link in quick_links %}
+                                <a href="{{ link['url'] }}" target="_blank" rel="noopener noreferrer" class="dashboard-quick-link">
+                                    <span class="quick-link-icon {{ link['category'] }}">↗</span>
+                                    <span><strong>{{ link['name'] }}</strong><small>{{ link['category']|capitalize }}</small></span>
+                                    <b>↗</b>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="dashboard-empty-state compact">
+                            <strong>Keep your school portals close.</strong>
+                            <p>Add Student Centre, your learning platform, email or library.</p>
+                            <a href="{{ url_for('settings') }}#quick-links">Add a quick link →</a>
+                        </div>
+                    {% endif %}
                 </section>
 
                 <section class="dashboard-detail-grid">
@@ -242,5 +270,16 @@
             </section>
         </main>
     </div>
+    <script>
+        document.getElementById("dashboard-search").addEventListener("input", (event) => {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll(
+                ".next-assessment-banner, .summary-card, .dashboard-card"
+            ).forEach((item) => {
+                item.hidden = query !== ""
+                    && !item.textContent.toLowerCase().includes(query);
+            });
+        });
+    </script>
 </body>
 </html>
