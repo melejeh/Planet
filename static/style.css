@@ -6787,11 +6787,12 @@ body.dashboard-body {
         text-decoration: none;
     }
 
-    .sidebar-profile .sign-out-link::before {
-        content: "↪";
-        font-size: 22px;
-        font-weight: 700;
-    }
+   .sidebar-profile .sign-out-link::before {
+    content: "OUT";
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
 
     /* To-Do */
     .todo-workspace {
