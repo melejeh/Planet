@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <title>Goals | Planet</title>
+    <style>.planet-search-hidden { display: none !important; }</style>
 </head>
 <body class="dashboard-body">
     <div class="dashboard-layout">
@@ -13,7 +14,7 @@
 
         <main class="dashboard-main">
             <header class="dashboard-topbar">
-                <input type="search" placeholder="Search your goals...">
+                <input id="goals-search" type="search" placeholder="Search your goals...">
             </header>
 
             <section class="goals-content">
@@ -252,6 +253,16 @@
         });
 
         bindGoalControls();
+
+        document.getElementById("goals-search").addEventListener("input", function (event) {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll(".planet-goal-card").forEach(function (goalCard) {
+                goalCard.classList.toggle(
+                    "planet-search-hidden",
+                    query !== "" && !goalCard.textContent.toLowerCase().includes(query)
+                );
+            });
+        });
     </script>
 </body>
 </html>

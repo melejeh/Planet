@@ -27,6 +27,18 @@ html[data-theme="midnight"] { --berry: #46516e; --paper: #f2f4f9; --berry-soft: 
 html[data-theme]:not([data-theme="editorial"]) .dashboard-main,
 html[data-theme]:not([data-theme="editorial"]) .dashboard-body { background-color: var(--paper); }
 
+/* Settings previews stay inside the app shell instead of repainting <html>. */
+.dashboard-layout[data-preview-theme="editorial"] { --berry: #8f3c5b; --paper: #fbfaf6; --berry-soft: #f7edf1; }
+.dashboard-layout[data-preview-theme="rose"] { --berry: #a83f68; --paper: #fff4f8; --berry-soft: #fae8f0; }
+.dashboard-layout[data-preview-theme="sage"] { --berry: #617864; --paper: #f4f7f1; --berry-soft: #e8f0e6; }
+.dashboard-layout[data-preview-theme="espresso"] { --berry: #76513f; --paper: #f8f2eb; --berry-soft: #efe3d8; }
+.dashboard-layout[data-preview-theme="midnight"] { --berry: #46516e; --paper: #f2f4f9; --berry-soft: #e6e9f2; }
+.dashboard-layout[data-preview-theme] .dashboard-main,
+.dashboard-layout[data-preview-theme] .dashboard-topbar,
+.dashboard-layout[data-preview-theme] .sidebar {
+    background-color: var(--paper);
+}
+
 /* =====================================
    Settings
 ===================================== */
@@ -42,12 +54,12 @@ html[data-theme]:not([data-theme="editorial"]) .dashboard-body { background-colo
 .settings-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
 .settings-card-heading h2 { margin: 6px 0 0; font-family: Georgia, serif; font-size: 30px; font-weight: 500; }
 .settings-card-heading > span { color: var(--muted); font-size: 12px; }
-.settings-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 22px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.settings-toggle-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 22px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 .settings-toggle-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .settings-toggle-row > span { display: grid; gap: 5px; }
 .settings-toggle-row strong { font-size: 15px; }
 .settings-toggle-row small { color: var(--muted); font-size: 13px; font-weight: 400; }
-.settings-toggle-row input { position: absolute; opacity: 0; pointer-events: none; }
+.settings-toggle-row input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .settings-toggle-row > i { position: relative; flex: 0 0 48px; width: 48px; height: 27px; border-radius: 999px; background: #d8d5cf; transition: .2s; }
 .settings-toggle-row > i::after { content: ""; position: absolute; top: 4px; left: 4px; width: 19px; height: 19px; border-radius: 50%; background: white; box-shadow: 0 1px 3px rgba(0,0,0,.18); transition: .2s; }
 .settings-toggle-row input:checked + i { background: var(--berry); }
@@ -59,13 +71,13 @@ html[data-theme]:not([data-theme="editorial"]) .dashboard-body { background-colo
 .settings-days { margin: 24px 0 0; padding: 0; border: 0; }
 .settings-days legend { margin-bottom: 11px; font-size: 13px; font-weight: 700; }
 .settings-days > div { display: flex; flex-wrap: wrap; gap: 8px; }
-.settings-days label { cursor: pointer; }
-.settings-days input { position: absolute; opacity: 0; pointer-events: none; }
+.settings-days label { position: relative; cursor: pointer; }
+.settings-days input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .settings-days span { display: grid; min-width: 50px; height: 40px; padding: 0 12px; place-items: center; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 12px; font-weight: 700; }
 .settings-days input:checked + span { border-color: var(--berry); background: var(--berry); color: white; }
 .theme-options { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; padding: 24px 0 8px; }
-.theme-option { cursor: pointer; }
-.theme-option input { position: absolute; opacity: 0; pointer-events: none; }
+.theme-option { position: relative; cursor: pointer; }
+.theme-option input { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .theme-preview { display: grid; gap: 11px; padding: 12px; border: 2px solid transparent; border-radius: 15px; color: var(--ink); font-size: 13px; }
 .theme-preview i { display: block; height: 66px; border-radius: 10px; background: var(--theme-colours); }
 .theme-option input:checked + .theme-preview { border-color: var(--berry); background: var(--berry-soft); }
@@ -75,18 +87,29 @@ html[data-theme]:not([data-theme="editorial"]) .dashboard-body { background-colo
 .settings-save-bar { position: sticky; bottom: 18px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 17px; background: rgba(255,255,255,.96); box-shadow: 0 12px 35px rgba(48,38,32,.1); }
 .settings-save-bar p { margin: 0; color: var(--muted); font-size: 13px; }
 
+.security-settings { margin-top: 22px; scroll-margin-top: 28px; }
+.security-message { margin: 22px 0 0; }
+.security-form { display: grid; gap: 20px; }
+.security-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.security-form-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.security-form-footer p { margin: 0; color: var(--muted); font-size: 13px; }
+.security-form-footer button { min-height: 46px; }
+
 .quick-links-settings { scroll-margin-top: 28px; }
 .quick-link-form { display: grid; grid-template-columns: 1fr 1.6fr .8fr auto; align-items: end; gap: 13px; padding: 24px 0; }
 .quick-link-form label { display: grid; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 700; }
 .quick-link-form input, .quick-link-form select { width: 100%; height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 11px; background: white; color: var(--ink); font: inherit; }
 .quick-link-form button { min-height: 48px; }
 .quick-link-settings-list { border-top: 1px solid var(--line); }
-.quick-link-settings-row { display: grid; grid-template-columns: 40px minmax(0,1fr) auto auto; align-items: center; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.quick-link-settings-row { display: grid; grid-template-columns: 40px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .quick-link-settings-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .quick-link-settings-row > div { display: grid; gap: 4px; min-width: 0; }
 .quick-link-settings-row small { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .quick-link-settings-row form { margin: 0; }
 .quick-link-settings-row button { padding: 0; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.quick-link-row-actions { display: flex !important; align-items: baseline; justify-content: flex-end; gap: 18px; min-width: max-content; }
+.quick-link-row-actions form { display: flex; align-items: baseline; height: auto; margin: 0; transform: none; }
+.quick-link-row-actions button { display: inline-flex; align-items: center; height: auto; line-height: 1; }
 .quick-link-category { padding: 7px 10px; border-radius: 999px; background: var(--berry-soft); color: var(--berry); font-size: 11px; font-weight: 700; }
 .quick-links-settings-empty { margin: 0; padding: 22px 0 2px; border-top: 1px solid var(--line); color: var(--muted); }
 .quick-link-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 12px; background: var(--berry-soft); color: var(--berry); font-style: normal; font-weight: 800; }
@@ -113,7 +136,7 @@ html[data-compact="true"] .gratitude-compose-card,
 html[data-compact="true"] .gratitude-notebook { padding: 22px; }
 
 @media (max-width: 900px) {
-    .settings-field-grid, .theme-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .settings-field-grid, .theme-options, .security-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .quick-link-form { grid-template-columns: 1fr 1fr; }
     .dashboard-quick-links { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
@@ -121,7 +144,8 @@ html[data-compact="true"] .gratitude-notebook { padding: 22px; }
     .settings-content { width: auto; padding: 44px 20px 90px; }
     .settings-card { padding: 22px; }
     .settings-card-heading { flex-direction: column; }
-    .settings-field-grid, .theme-options, .account-fields { grid-template-columns: 1fr; }
+    .settings-field-grid, .theme-options, .account-fields, .security-fields { grid-template-columns: 1fr; }
+    .security-form-footer { align-items: stretch; flex-direction: column; }
     .account-fields label:last-child { grid-column: auto; }
     .quick-link-form, .dashboard-quick-links { grid-template-columns: 1fr; }
     .quick-link-settings-row { grid-template-columns: 40px minmax(0,1fr) auto; }
@@ -6439,6 +6463,141 @@ form button:hover {
 #planned-sessions {
     scroll-margin-top: 28px;
 }
+
+/* =====================================
+   Fixed App Shell
+   Keeps the profile/sign-out anchored on every dashboard page.
+===================================== */
+
+html,
+body.dashboard-body {
+    height: 100%;
+}
+
+body.dashboard-body {
+    overflow: hidden;
+}
+
+.dashboard-body .dashboard-layout {
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.dashboard-body .sidebar {
+    position: relative;
+    top: auto;
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.dashboard-body .dashboard-main {
+    height: 100vh;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* Daily separators inside the generated study plan. */
+
+.study-day-group + .study-day-group {
+    margin-top: 18px;
+}
+
+.study-day-heading {
+    margin: 0;
+    padding: 18px 0 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--berry);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 21px;
+    font-weight: 500;
+}
+
+.study-day-group:first-child .study-day-heading {
+    padding-top: 4px;
+}
+
+.study-day-group .study-block-row:last-child {
+    border-bottom: 0;
+}
+
+.study-day-group .study-block-date {
+    justify-content: center;
+}
+
+/* Bulk study-session selection */
+
+.study-plan-count-actions,
+.study-bulk-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.study-bulk-actions[hidden],
+.study-plan-count-actions[hidden] {
+    display: none;
+}
+
+.study-bulk-actions .text-button {
+    white-space: nowrap;
+}
+
+.study-session-select {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    display: none;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.study-session-select input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.study-session-select span {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+    border: 1.5px solid var(--line);
+    border-radius: 7px;
+    background: var(--white);
+}
+
+.study-session-select input:checked + span {
+    border-color: var(--berry);
+    background: var(--berry);
+}
+
+.study-session-select input:checked + span::after {
+    content: "✓";
+    color: white;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+#planned-sessions.is-selecting .study-block-row {
+    position: relative;
+    padding-left: 38px;
+}
+
+#planned-sessions.is-selecting .study-session-select {
+    display: grid;
+}
+
+#planned-sessions.is-selecting .study-block-actions {
+    opacity: 0.45;
+    pointer-events: none;
+}
 .study-plan-session-message {
     margin: 0 0 20px;
     padding: 14px 16px;
@@ -6446,26 +6605,4 @@ form button:hover {
     background: #edf5ee;
     color: #4f6d57;
     font-weight: 700;
-}
-html,
-body {
-    max-width: 100%;
-    overflow-x: hidden;
-}
-
-.dashboard-main,
-.settings-content,
-.settings-form,
-.settings-card {
-    min-width: 0;
-    max-width: 100%;
-}
-
-.settings-field-grid > *,
-.quick-link-form > * {
-    min-width: 0;
-}
-.quick-link-category {
-    position: relative;
-    top: 12px;
 }

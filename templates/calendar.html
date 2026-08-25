@@ -50,6 +50,52 @@
             background-color: var(--white);
         }
 
+        /* Keep the navigation and sign-out area still while this page scrolls. */
+        .calendar-page { height: 100vh; overflow: hidden; }
+        .calendar-page .dashboard-layout,
+        .calendar-page .sidebar { height: 100vh; }
+        .calendar-page .sidebar { overflow: hidden; }
+        .calendar-page .dashboard-main {
+            height: 100vh;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+
+        .demo-calendar-event { padding-right: 54px; }
+        .calendar-event-actions {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 140ms ease;
+        }
+        .demo-calendar-event:hover .calendar-event-actions,
+        .demo-calendar-event:focus-within .calendar-event-actions {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .calendar-event-actions form { margin: 0; }
+        .calendar-event-actions button {
+            display: grid;
+            width: 23px;
+            height: 23px;
+            padding: 0;
+            place-items: center;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.94);
+            color: var(--ink);
+            font: inherit;
+            font-size: 13px;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(36, 34, 29, 0.16);
+        }
+
         @media (max-width: 800px) {
             .calendar-scroll-window {
                 max-height: 560px;
@@ -59,7 +105,7 @@
     <title>Calendar | Planet</title>
 </head>
 
-<body class="dashboard-body">
+<body class="dashboard-body calendar-page">
     <div class="dashboard-layout">
         {% set active_page = "calendar" %}
         {% include "sidebar.html" %}
@@ -89,7 +135,7 @@
                     <button
                         type="button"
                         class="dark-button"
-                        onclick="toggleEventForm()"
+                        onclick="openNewEventForm()"
                     >
                         ＋ Add event
                     </button>
@@ -99,7 +145,7 @@
                     <div class="event-form-heading">
                         <div>
                             <p class="eyebrow">NEW EVENT</p>
-                            <h2>Add something to your calendar</h2>
+                            <h2 id="event-form-title">Add something to your calendar</h2>
                         </div>
 
                         <button
@@ -111,7 +157,7 @@
                         </button>
                     </div>
 
-                    <form method="POST" action="{{ url_for('calendar') }}">
+                    <form id="event-form" method="POST" action="{{ url_for('calendar') }}">
                         <div class="event-form-grid">
                             <label>
                                 Event name
@@ -141,7 +187,7 @@
 
                             <label>
                                 Category
-                                <select name="category">
+                                <select id="event-category" name="category">
                                     <option value="class">Class</option>
                                     <option value="study">Study</option>
                                     <option value="meeting">Meeting</option>
@@ -152,6 +198,7 @@
                             <label class="event-notes-field">
                                 Notes <span>(optional)</span>
                                 <input
+                                    id="event-notes"
                                     type="text"
                                     name="notes"
                                     placeholder="Room, link or reminder"
@@ -207,7 +254,7 @@
                             </fieldset>
                         </div>
 
-                        <button type="submit" class="dark-button">
+                        <button id="event-submit-button" type="submit" class="dark-button">
                             Add to calendar
                         </button>
                     </form>
@@ -281,6 +328,13 @@
                                 <div
                                     class="demo-calendar-event {{ event['category'] }}"
                                     style="top: {{ event['top'] }}px; height: {{ event['height'] }}px;"
+                                    data-edit-action="{{ url_for('edit_event', event_id=event['id']) }}"
+                                    data-title="{{ event['title']|e }}"
+                                    data-date="{{ event['event_date'] }}"
+                                    data-start="{{ event['start_time'] }}"
+                                    data-end="{{ event['end_time'] }}"
+                                    data-category="{{ event['category'] }}"
+                                    data-notes="{{ (event['notes'] or '')|e }}"
                                 >
                                     <time>{{ event["display_time"] }}</time>
                                     <strong>{{ event["title"] }}</strong>
@@ -289,16 +343,19 @@
                                         <p>{{ event["notes"] }}</p>
                                     {% endif %}
 
-                                    <form
-                                        method="POST"
-                                        action="{{ url_for(
-                                            'delete_event',
-                                            event_id=event['id']
-                                        ) }}"
-                                        onsubmit="return confirm('Delete this event?');"
-                                    >
-                                        <button type="submit" aria-label="Delete event">×</button>
-                                    </form>
+                                    <div class="calendar-event-actions">
+                                        <button type="button" class="calendar-event-edit" aria-label="Edit event" title="Edit event">✎</button>
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for(
+                                                'delete_event',
+                                                event_id=event['id']
+                                            ) }}"
+                                            onsubmit="return confirm('Delete this event?');"
+                                        >
+                                            <button type="submit" aria-label="Delete event" title="Delete event">×</button>
+                                        </form>
+                                    </div>
                                 </div>
                             {% endfor %}
                         </article>
@@ -317,17 +374,60 @@
     </div>
 
     <script>
-        function toggleEventForm() {
-            const panel = document.getElementById("event-form-panel");
-            panel.classList.toggle("is-open");
+        const eventForm = document.getElementById("event-form");
+        const eventFormPanel = document.getElementById("event-form-panel");
+        const eventFormTitle = document.getElementById("event-form-title");
+        const eventSubmitButton = document.getElementById("event-submit-button");
+        const addEventAction = "{{ url_for('calendar') }}";
 
-            if (panel.classList.contains("is-open")) {
-                panel.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center"
-                });
+        function showEventForm() {
+            eventFormPanel.classList.add("is-open");
+            eventFormPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+
+        function resetEventFormForAdd() {
+            eventForm.reset();
+            eventForm.action = addEventAction;
+            eventFormTitle.textContent = "Add something to your calendar";
+            eventSubmitButton.textContent = "Add to calendar";
+            updateRepeatOptions();
+        }
+
+        function openNewEventForm() {
+            resetEventFormForAdd();
+            showEventForm();
+            document.getElementById("event-title").focus();
+        }
+
+        function toggleEventForm() {
+            eventFormPanel.classList.toggle("is-open");
+
+            if (eventFormPanel.classList.contains("is-open")) {
+                eventFormPanel.scrollIntoView({ behavior: "smooth", block: "center" });
             }
         }
+
+        document.querySelectorAll(".calendar-event-edit").forEach((editButton) => {
+            editButton.addEventListener("click", (clickEvent) => {
+                clickEvent.stopPropagation();
+                const calendarEvent = editButton.closest(".demo-calendar-event");
+
+                eventForm.reset();
+                eventForm.action = calendarEvent.dataset.editAction;
+                eventFormTitle.textContent = "Edit calendar event";
+                eventSubmitButton.textContent = "Save changes";
+                document.getElementById("event-title").value = calendarEvent.dataset.title;
+                document.getElementById("event-date").value = calendarEvent.dataset.date;
+                document.getElementById("event-start").value = calendarEvent.dataset.start;
+                document.getElementById("event-end").value = calendarEvent.dataset.end;
+                document.getElementById("event-category").value = calendarEvent.dataset.category;
+                document.getElementById("event-notes").value = calendarEvent.dataset.notes;
+                document.getElementById("repeat-type").value = "none";
+                updateRepeatOptions();
+                showEventForm();
+                document.getElementById("event-title").focus();
+            });
+        });
 
         document.getElementById("calendar-search").addEventListener("input", (event) => {
             const query = event.target.value.trim().toLowerCase();
@@ -367,6 +467,8 @@
                 return;
             }
 
+            resetEventFormForAdd();
+
             const columnBounds = dayColumn.getBoundingClientRect();
             const clickedPixels = clickEvent.clientY - columnBounds.top;
 
@@ -394,12 +496,7 @@ const endMinutes = Math.min(
             document.getElementById("event-end").value =
                 formatTime(endMinutes);
 
-            const panel = document.getElementById("event-form-panel");
-            panel.classList.add("is-open");
-            panel.scrollIntoView({
-                behavior: "smooth",
-                block: "center"
-            });
+            showEventForm();
 
 
             /* The text below was accidentally pasted into this template.

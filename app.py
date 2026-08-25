@@ -3722,6 +3722,44 @@ def study_plan():
         (user_id,)
     ).fetchall()
 
+    study_block_groups = []
+    groups_by_date = {}
+
+    for block in study_blocks:
+        date_key = block["scheduled_date"]
+
+        if date_key not in groups_by_date:
+            try:
+                block_date = datetime.strptime(date_key, "%Y-%m-%d")
+                day_number = block_date.day
+
+                if 10 < day_number % 100 < 14:
+                    suffix = "th"
+                else:
+                    suffix = {
+                        1: "st",
+                        2: "nd",
+                        3: "rd"
+                    }.get(day_number % 10, "th")
+
+                date_label = (
+                    f"{block_date.strftime('%A')}, "
+                    f"{day_number}{suffix} "
+                    f"{block_date.strftime('%B %Y')}"
+                )
+            except (TypeError, ValueError):
+                date_label = date_key or "Date unavailable"
+
+            group = {
+                "date": date_key,
+                "label": date_label,
+                "blocks": []
+            }
+            groups_by_date[date_key] = group
+            study_block_groups.append(group)
+
+        groups_by_date[date_key]["blocks"].append(block)
+
     # Prepare the course cards here rather than making Jinja recalculate them.
     # Completed sessions are grouped by their Monday-Sunday week so every
     # course card can act as a small, expandable study archive.
@@ -3801,6 +3839,7 @@ def study_plan():
         course_cards=course_cards,
         assessments=assessments,
         study_blocks=study_blocks,
+        study_block_groups=study_block_groups,
         error=request.args.get("error"),
         saved=request.args.get("saved")
     )
@@ -3821,6 +3860,259 @@ def _owned_study_plan_course(connection, course_id, user_id):
         """,
         (course_id, user_id)
     ).fetchone()
+
+
+def _time_to_minutes(value):
+    hours, minutes = map(int, value.split(":"))
+    return hours * 60 + minutes
+
+
+def _minutes_to_time(value):
+    return f"{value // 60:02d}:{value % 60:02d}"
+
+
+@app.route("/study-plan/generate", methods=["POST"])
+def generate_study_plan():
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    user_id = session["user_id"]
+    active_semester_id = session.get("active_semester_id")
+
+    if not active_semester_id:
+        return redirect(url_for(
+            "study_plan",
+            error="Choose an active semester before generating a plan."
+        ))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+
+    settings = connection.execute(
+        "SELECT * FROM study_plan_settings WHERE user_id = ?",
+        (user_id,)
+    ).fetchone()
+
+    if settings is None:
+        settings = {
+            "earliest_time": "09:00",
+            "latest_time": "21:00",
+            "weekly_target_hours": 8,
+            "preferred_session_minutes": 45,
+            "break_minutes": 10,
+            "include_weekends": 1,
+            "available_days":
+                "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+        }
+
+    courses = connection.execute(
+        """
+        SELECT courses.id, courses.code, courses.name
+        FROM courses
+        JOIN semesters ON semesters.id = courses.semester_id
+        WHERE semesters.user_id = ? AND courses.semester_id = ?
+        ORDER BY courses.code, courses.name
+        """,
+        (user_id, active_semester_id)
+    ).fetchall()
+
+    if not courses:
+        connection.close()
+        return redirect(url_for(
+            "study_plan",
+            error="Add at least one course before generating a plan."
+        ))
+
+    today = datetime.now().date()
+    window_end = today + timedelta(days=6)
+    selected_assessment_ids = request.form.getlist("assessment_ids", type=int)
+    assessments = []
+
+    if selected_assessment_ids:
+        placeholders = ",".join("?" for _ in selected_assessment_ids)
+        assessments = connection.execute(
+            f"""
+            SELECT assessments.id, assessments.name, assessments.due_date,
+                   assessments.weight, courses.id AS course_id,
+                   courses.code AS course_code
+            FROM assessments
+            JOIN courses ON courses.id = assessments.course_id
+            JOIN semesters ON semesters.id = courses.semester_id
+            WHERE semesters.user_id = ?
+              AND courses.semester_id = ?
+              AND assessments.score IS NULL
+              AND assessments.id IN ({placeholders})
+              AND assessments.due_date >= ?
+            ORDER BY assessments.due_date ASC, assessments.weight DESC
+            """,
+            (
+                user_id,
+                active_semester_id,
+                *selected_assessment_ids,
+                today.isoformat()
+            )
+        ).fetchall()
+
+    # If no assessments are selected, Planet balances sessions by course.
+    plan_targets = []
+    for assessment in assessments:
+        plan_targets.append({
+            "course_id": assessment["course_id"],
+            "assessment_id": assessment["id"],
+            "title": f"Study for {assessment['name']}",
+            "notes": f"Priority session for {assessment['course_code']}.",
+            "due_date": assessment["due_date"]
+        })
+
+    if not plan_targets:
+        for course in courses:
+            plan_targets.append({
+                "course_id": course["id"],
+                "assessment_id": None,
+                "title": f"{course['code']} study session",
+                "notes": f"Focused study time for {course['name']}.",
+                "due_date": None
+            })
+
+    existing_blocks = connection.execute(
+        """
+        SELECT scheduled_date, start_time, end_time
+        FROM study_blocks
+        WHERE user_id = ?
+          AND scheduled_date BETWEEN ? AND ?
+          AND status IN ('planned', 'completed')
+        """,
+        (user_id, today.isoformat(), window_end.isoformat())
+    ).fetchall()
+
+    calendar_events = connection.execute(
+        """
+        SELECT event_date AS scheduled_date, start_time, end_time
+        FROM events
+        WHERE user_id = ? AND event_date BETWEEN ? AND ?
+        """,
+        (user_id, today.isoformat(), window_end.isoformat())
+    ).fetchall()
+
+    occupied = {}
+    existing_minutes = 0
+    for item in existing_blocks:
+        try:
+            start = _time_to_minutes(item["start_time"])
+            end = _time_to_minutes(item["end_time"])
+        except (TypeError, ValueError):
+            continue
+        occupied.setdefault(item["scheduled_date"], []).append((start, end))
+        existing_minutes += max(0, end - start)
+
+    for item in calendar_events:
+        try:
+            start = _time_to_minutes(item["start_time"])
+            end = _time_to_minutes(item["end_time"])
+        except (TypeError, ValueError):
+            continue
+        occupied.setdefault(item["scheduled_date"], []).append((start, end))
+
+    target_minutes = int(float(settings["weekly_target_hours"]) * 60)
+    remaining_minutes = max(0, target_minutes - existing_minutes)
+    session_minutes = int(settings["preferred_session_minutes"])
+    break_minutes = int(settings["break_minutes"])
+    earliest = _time_to_minutes(settings["earliest_time"])
+    latest = _time_to_minutes(settings["latest_time"])
+    available_days = {
+        day.strip().lower()
+        for day in settings["available_days"].split(",")
+        if day.strip()
+    }
+
+    if not settings["include_weekends"]:
+        available_days -= {"saturday", "sunday"}
+
+    generated = []
+    target_index = 0
+    now = datetime.now()
+
+    for day_offset in range(7):
+        if remaining_minutes <= 0:
+            break
+
+        study_date = today + timedelta(days=day_offset)
+        if study_date.strftime("%A").lower() not in available_days:
+            continue
+
+        slot_start = earliest
+        if study_date == today:
+            current_minutes = now.hour * 60 + now.minute
+            slot_start = max(
+                slot_start,
+                ((current_minutes + 14) // 15) * 15
+            )
+
+        while slot_start + session_minutes <= latest and remaining_minutes > 0:
+            slot_end = slot_start + min(session_minutes, remaining_minutes)
+            conflicts = any(
+                slot_start < busy_end and slot_end > busy_start
+                for busy_start, busy_end in occupied.get(
+                    study_date.isoformat(), []
+                )
+            )
+
+            if conflicts:
+                slot_start += 15
+                continue
+
+            eligible_targets = [
+                target for target in plan_targets
+                if target["due_date"] is None
+                or study_date.isoformat() <= target["due_date"]
+            ]
+            if not eligible_targets:
+                slot_start += 15
+                continue
+
+            target = eligible_targets[target_index % len(eligible_targets)]
+            target_index += 1
+
+            connection.execute(
+                """
+                INSERT INTO study_blocks (
+                    user_id, course_id, assessment_id, title, notes,
+                    scheduled_date, start_time, end_time, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'planned')
+                """,
+                (
+                    user_id,
+                    target["course_id"],
+                    target["assessment_id"],
+                    target["title"],
+                    target["notes"],
+                    study_date.isoformat(),
+                    _minutes_to_time(slot_start),
+                    _minutes_to_time(slot_end)
+                )
+            )
+            generated.append((slot_start, slot_end))
+            occupied.setdefault(study_date.isoformat(), []).append(
+                (slot_start, slot_end)
+            )
+            remaining_minutes -= slot_end - slot_start
+            slot_start = slot_end + break_minutes
+
+    connection.commit()
+    connection.close()
+
+    if not generated:
+        if remaining_minutes == 0:
+            message = "Your study plan already meets this week's target."
+        else:
+            message = "Planet could not find an open time. Adjust your study preferences and try again."
+        return redirect(url_for("study_plan", error=message))
+
+    session_word = "session" if len(generated) == 1 else "sessions"
+    return redirect(url_for(
+        "study_plan",
+        saved=f"Planet generated {len(generated)} study {session_word}."
+    ) + "#planned-sessions")
 
 
 @app.route("/study-plan/sessions/add", methods=["POST"])
@@ -4021,14 +4313,82 @@ def delete_study_block(block_id):
         return redirect(url_for("home"))
 
     connection = sqlite3.connect("planet.db")
-    connection.execute(
+    cursor = connection.execute(
         "DELETE FROM study_blocks WHERE id = ? AND user_id = ?",
         (block_id, session["user_id"])
     )
     connection.commit()
     connection.close()
 
-    return redirect(url_for("study_plan", saved="Study session deleted."))
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        if cursor.rowcount == 0:
+            return {
+                "success": False,
+                "message": "Study session not found."
+            }, 404
+
+        return {
+            "success": True,
+            "deleted_id": block_id
+        }
+
+    return redirect(
+        url_for("study_plan", saved="Study session deleted.")
+        + "#planned-sessions"
+    )
+
+
+@app.route("/study-plan/sessions/delete-selected", methods=["POST"])
+def delete_selected_study_blocks():
+    if "user_id" not in session:
+        return {"success": False, "message": "Sign in required."}, 401
+
+    payload = request.get_json(silent=True) or {}
+    raw_ids = payload.get("block_ids", [])
+
+    if not isinstance(raw_ids, list):
+        return {"success": False, "message": "Choose sessions to delete."}, 400
+
+    block_ids = []
+    for value in raw_ids[:200]:
+        try:
+            block_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if block_id > 0 and block_id not in block_ids:
+            block_ids.append(block_id)
+
+    if not block_ids:
+        return {"success": False, "message": "Choose sessions to delete."}, 400
+
+    placeholders = ",".join("?" for _ in block_ids)
+    connection = sqlite3.connect("planet.db")
+    owned_rows = connection.execute(
+        f"""
+        SELECT id FROM study_blocks
+        WHERE user_id = ? AND id IN ({placeholders})
+        """,
+        (session["user_id"], *block_ids)
+    ).fetchall()
+    deleted_ids = [row[0] for row in owned_rows]
+
+    if deleted_ids:
+        delete_placeholders = ",".join("?" for _ in deleted_ids)
+        connection.execute(
+            f"""
+            DELETE FROM study_blocks
+            WHERE user_id = ? AND id IN ({delete_placeholders})
+            """,
+            (session["user_id"], *deleted_ids)
+        )
+        connection.commit()
+
+    connection.close()
+
+    return {
+        "success": True,
+        "deleted_ids": deleted_ids
+    }
 
 
 GRATITUDE_LABELS = {
@@ -4188,7 +4548,7 @@ def planet_appearance():
             "SELECT theme, compact_dashboard FROM user_settings WHERE user_id = ?",
             (session["user_id"],)
         ).fetchone()
-    except sqlite3.OperationalError:
+    except (sqlite3.OperationalError, IndexError):
         preferences = None
     connection.close()
 
@@ -4220,6 +4580,25 @@ def settings():
         )
         """
     )
+
+    # CREATE TABLE IF NOT EXISTS does not update an older table. Add any
+    # Settings columns that are missing from an existing Planet database.
+    user_settings_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(user_settings)").fetchall()
+    }
+    user_settings_migrations = {
+        "reschedule_missed": "INTEGER NOT NULL DEFAULT 1",
+        "grade_priority": "INTEGER NOT NULL DEFAULT 1",
+        "allow_weekends": "INTEGER NOT NULL DEFAULT 1",
+        "theme": "TEXT NOT NULL DEFAULT 'editorial'",
+        "compact_dashboard": "INTEGER NOT NULL DEFAULT 0"
+    }
+    for column_name, column_definition in user_settings_migrations.items():
+        if column_name not in user_settings_columns:
+            connection.execute(
+                f"ALTER TABLE user_settings ADD COLUMN {column_name} {column_definition}"
+            )
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS quick_links (
@@ -4233,6 +4612,7 @@ def settings():
         )
         """
     )
+
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS study_plan_settings (
@@ -4248,6 +4628,28 @@ def settings():
         )
         """
     )
+
+    study_settings_columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(study_plan_settings)").fetchall()
+    }
+    study_settings_migrations = {
+        "earliest_time": "TEXT NOT NULL DEFAULT '09:00'",
+        "latest_time": "TEXT NOT NULL DEFAULT '21:00'",
+        "weekly_target_hours": "REAL NOT NULL DEFAULT 8",
+        "preferred_session_minutes": "INTEGER NOT NULL DEFAULT 45",
+        "break_minutes": "INTEGER NOT NULL DEFAULT 10",
+        "include_weekends": "INTEGER NOT NULL DEFAULT 1",
+        "available_days": (
+            "TEXT NOT NULL DEFAULT "
+            "'monday,tuesday,wednesday,thursday,friday'"
+        )
+    }
+    for column_name, column_definition in study_settings_migrations.items():
+        if column_name not in study_settings_columns:
+            connection.execute(
+                f"ALTER TABLE study_plan_settings ADD COLUMN {column_name} {column_definition}"
+            )
     connection.commit()
 
     if request.method == "POST":
@@ -4388,8 +4790,74 @@ def settings():
         selected_days=study_preferences["available_days"].split(","),
         quick_links=quick_links,
         saved=request.args.get("saved"),
-        error=request.args.get("error")
+        error=request.args.get("error"),
+        security_saved=request.args.get("security_saved"),
+        security_error=request.args.get("security_error")
     )
+
+
+@app.route("/settings/change-password", methods=["POST"])
+def change_password():
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+    confirm_password = request.form.get("confirm_password", "")
+
+    def security_redirect(message, is_error=False):
+        key = "security_error" if is_error else "security_saved"
+        return redirect(url_for("settings", **{key: message}) + "#security")
+
+    if not current_password or not new_password or not confirm_password:
+        return security_redirect("Complete all three password fields.", True)
+
+    if new_password != confirm_password:
+        return security_redirect("The new passwords do not match.", True)
+
+    if (
+        len(new_password) < 8
+        or len(new_password) > 128
+        or not any(character.isalpha() for character in new_password)
+        or not any(character.isdigit() for character in new_password)
+    ):
+        return security_redirect(
+            "Use 8–128 characters with at least one letter and one number.",
+            True
+        )
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+    user = connection.execute(
+        "SELECT password_hash FROM users WHERE id = ?",
+        (session["user_id"],)
+    ).fetchone()
+
+    if user is None or not check_password_hash(
+        user["password_hash"], current_password
+    ):
+        connection.close()
+        return security_redirect("Your current password is incorrect.", True)
+
+    if check_password_hash(user["password_hash"], new_password):
+        connection.close()
+        return security_redirect(
+            "Choose a new password that is different from your current one.",
+            True
+        )
+
+    new_password_hash = generate_password_hash(
+        new_password,
+        method="pbkdf2:sha256"
+    )
+    connection.execute(
+        "UPDATE users SET password_hash = ? WHERE id = ?",
+        (new_password_hash, session["user_id"])
+    )
+    connection.commit()
+    connection.close()
+
+    return security_redirect("Password changed successfully.")
 
 
 @app.route("/settings/quick-links/add", methods=["POST"])
