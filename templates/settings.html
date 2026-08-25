@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{{ planet_theme|default('editorial') }}" data-compact="{{ 'true' if planet_compact else 'false' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='settings-fix-3') }}">
     <title>Settings | Planet</title>
 </head>
 <body class="dashboard-body">
@@ -93,6 +93,65 @@
                     <div class="settings-save-bar"><p>Your changes apply across Planet.</p><button type="submit" class="primary-button">Save settings</button></div>
                 </form>
 
+                <section class="settings-card security-settings" id="security" data-settings-section>
+                    <div class="settings-card-heading">
+                        <div><p class="eyebrow">SECURITY</p><h2>Change your password</h2></div>
+                        <span>Keep your Planet account secure</span>
+                    </div>
+
+                    {% if security_saved %}
+                        <div class="settings-message success security-message" role="status">
+                            {{ security_saved }}
+                        </div>
+                    {% endif %}
+                    {% if security_error %}
+                        <div class="settings-message error security-message" role="alert">
+                            {{ security_error }}
+                        </div>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('change_password') }}" class="security-form">
+                        <div class="settings-field-grid security-fields">
+                            <label>
+                                Current password
+                                <input
+                                    type="password"
+                                    name="current_password"
+                                    autocomplete="current-password"
+                                    maxlength="128"
+                                    required
+                                >
+                            </label>
+                            <label>
+                                New password
+                                <input
+                                    type="password"
+                                    name="new_password"
+                                    autocomplete="new-password"
+                                    minlength="8"
+                                    maxlength="128"
+                                    required
+                                >
+                            </label>
+                            <label>
+                                Confirm new password
+                                <input
+                                    type="password"
+                                    name="confirm_password"
+                                    autocomplete="new-password"
+                                    minlength="8"
+                                    maxlength="128"
+                                    required
+                                >
+                            </label>
+                        </div>
+                        <div class="security-form-footer">
+                            <p>Use 8–128 characters with at least one letter and one number.</p>
+                            <button type="submit" class="primary-button">Change password</button>
+                        </div>
+                    </form>
+                </section>
+
                 <section class="settings-card quick-links-settings" id="quick-links" data-settings-section>
                     <div class="settings-card-heading">
                         <div><p class="eyebrow">QUICK LINKS</p><h2>Your school shortcuts</h2></div>
@@ -120,10 +179,12 @@
                                 <div class="quick-link-settings-row">
                                     <span class="quick-link-icon {{ link['category'] }}">↗</span>
                                     <div><strong>{{ link['name'] }}</strong><small>{{ link['url'] }}</small></div>
-                                    <span class="quick-link-category">{{ link['category']|capitalize }}</span>
-                                    <form method="POST" class="quick-link-delete-form" action="{{ url_for('delete_quick_link', link_id=link['id']) }}">
-                                        <button type="submit" class="text-button danger-text-button">Delete</button>
-                                    </form>
+                                    <div class="quick-link-row-actions">
+                                        <span class="quick-link-category">{{ link['category']|capitalize }}</span>
+                                        <form method="POST" class="quick-link-delete-form" action="{{ url_for('delete_quick_link', link_id=link['id']) }}">
+                                            <button type="submit" class="text-button danger-text-button">Delete</button>
+                                        </form>
+                                    </div>
                                 </div>
                             {% endfor %}
                         </div>
@@ -136,24 +197,33 @@
     </div>
 
     <script>
+        const settingsLayout = document.querySelector(".dashboard-layout");
+        const settingsForm = document.getElementById("settings-form");
+        const compactInput = document.querySelector('input[name="compact_dashboard"]');
+        const settingsSearch = document.getElementById("settings-search");
+
         document.querySelectorAll('input[name="theme"]').forEach((input) => {
             input.addEventListener("change", () => {
-                document.documentElement.dataset.theme = input.value;
+                if (settingsLayout) {
+                    settingsLayout.dataset.previewTheme = input.value;
+                }
             });
         });
-        document.querySelector('input[name="compact_dashboard"]').addEventListener("change", (event) => {
-            document.documentElement.dataset.compact = String(event.target.checked);
-        });
-        document.getElementById("settings-form").addEventListener("submit", () => {
-            localStorage.setItem("planetTheme", document.querySelector('input[name="theme"]:checked').value);
-            localStorage.setItem("planetCompact", String(document.querySelector('input[name="compact_dashboard"]').checked));
-        });
-        document.getElementById("settings-search").addEventListener("input", (event) => {
-            const query = event.target.value.trim().toLowerCase();
-            document.querySelectorAll("[data-settings-section]").forEach((section) => {
-                section.hidden = !section.textContent.toLowerCase().includes(query);
+
+        if (compactInput) {
+            compactInput.addEventListener("change", (event) => {
+                document.documentElement.dataset.compact = String(event.target.checked);
             });
-        });
+        }
+
+        if (settingsSearch) {
+            settingsSearch.addEventListener("input", (event) => {
+                const query = event.target.value.trim().toLowerCase();
+                document.querySelectorAll("[data-settings-section]").forEach((section) => {
+                    section.hidden = !section.textContent.toLowerCase().includes(query);
+                });
+            });
+        }
 
         document.querySelectorAll(".quick-link-delete-form").forEach((form) => {
             form.addEventListener("submit", async (event) => {

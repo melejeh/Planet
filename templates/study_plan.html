@@ -12,6 +12,7 @@
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
+    <style>.planet-search-hidden { display: none !important; }</style>
 
     <title>Study Plan | Planet</title>
 </head>
@@ -62,9 +63,10 @@
                         </button>
 
                         <button
-                            type="button"
+                            type="submit"
                             class="primary-button"
                             id="generate-plan-button"
+                            form="plan-selection-form"
                         >
                             ✦ Generate study plan
                         </button>
@@ -230,28 +232,57 @@
                                     </div>
                                 {% endif %}
                             </div>
-                            <span class="study-plan-count">
-                                {{ study_blocks|length }}
-                                {% if study_blocks|length == 1 %}
-                                    session
-                                {% else %}
-                                    sessions
+                            <div class="study-plan-count-actions" id="standard-session-controls">
+                                <span class="study-plan-count">
+                                    {{ study_blocks|length }}
+                                    {% if study_blocks|length == 1 %}
+                                        session
+                                    {% else %}
+                                        sessions
+                                    {% endif %}
+                                </span>
+                                {% if study_blocks %}
+                                    <button type="button" class="text-button" id="select-sessions-button">
+                                        Select
+                                    </button>
                                 {% endif %}
-                            </span>
+                            </div>
+
+                            <div class="study-bulk-actions" id="study-bulk-actions" hidden>
+                                <button type="button" class="text-button" id="select-all-sessions">Select all</button>
+                                <button type="button" class="text-button danger-text-button" id="delete-selected-sessions" disabled>
+                                    Delete selected <span id="selected-session-count">(0)</span>
+                                </button>
+                                <button type="button" class="text-button" id="cancel-session-selection">Cancel</button>
+                            </div>
                         </div>
 
                         {% if study_blocks %}
 
                             <div class="study-block-list">
 
-                                {% for block in study_blocks %}
-                                    <article class="study-block-row">
+                                {% for day_group in study_block_groups %}
+                                    <section class="study-day-group">
+                                        <h3 class="study-day-heading">
+                                            {{ day_group["label"] }}
+                                        </h3>
+
+                                {% for block in day_group["blocks"] %}
+                                    <article
+                                        class="study-block-row"
+                                        data-course-id="{{ block['course_id'] or '' }}"
+                                        data-status="{{ block['status'] }}"
+                                    >
+                                        <label class="study-session-select" aria-label="Select {{ block['title']|e }}">
+                                            <input
+                                                type="checkbox"
+                                                class="study-session-checkbox"
+                                                value="{{ block['id'] }}"
+                                            >
+                                            <span></span>
+                                        </label>
 
                                         <div class="study-block-date">
-                                            <span>
-                                                {{ block["scheduled_date"] }}
-                                            </span>
-
                                             <strong>
                                                 {{ block["start_time"] }}
                                             </strong>
@@ -335,8 +366,8 @@
 
                                             <form
                                                 method="POST"
+                                                class="study-delete-form"
                                                 action="{{ url_for('delete_study_block', block_id=block['id']) }}"
-                                                onsubmit="return confirm('Delete this study session?');"
                                             >
                                                 <button type="submit" class="text-button danger-text-button">
                                                     Delete
@@ -345,6 +376,9 @@
                                         </div>
 
                                     </article>
+                                {% endfor %}
+
+                                    </section>
                                 {% endfor %}
 
                             </div>
@@ -366,7 +400,7 @@
                                     <button type="button" class="secondary-button open-session-button">
                                         Add my own session
                                     </button>
-                                    <button type="button" class="primary-button" id="empty-generate-button">
+                                    <button type="submit" class="primary-button" id="empty-generate-button" form="plan-selection-form">
                                         Generate my plan
                                     </button>
                                 </div>
@@ -454,6 +488,8 @@
                 <form
                     id="plan-selection-form"
                     class="hidden-plan-form"
+                    method="POST"
+                    action="{{ url_for('generate_study_plan') }}"
                 ></form>
 
             </section>
@@ -731,6 +767,15 @@
         const sessionSubmit = document.getElementById("session-submit");
         const addSessionAction = "{{ url_for('add_study_block') }}";
 
+        document.getElementById("plan-selection-form").addEventListener("submit", () => {
+            document.querySelectorAll(
+                '#generate-plan-button, #empty-generate-button'
+            ).forEach((button) => {
+                button.disabled = true;
+                button.textContent = "✦ Building your plan...";
+            });
+        });
+
         function openOverlay(overlay) {
             overlay.hidden = false;
             document.body.classList.add("modal-open");
@@ -832,6 +877,7 @@
 
                     const result = await response.json();
                     const newStatus = result.status;
+                    row.dataset.status = newStatus;
 
                     badge.classList.remove("planned", "completed", "missed");
                     badge.classList.add(newStatus);
@@ -868,13 +914,229 @@
             });
         });
 
+        document.querySelectorAll(".study-delete-form").forEach((form) => {
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                if (!window.confirm("Delete this study session?")) return;
+
+                const button = form.querySelector('button[type="submit"]');
+                const row = form.closest(".study-block-row");
+                const dayGroup = row.closest(".study-day-group");
+                button.disabled = true;
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: "POST",
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest",
+                            "Accept": "application/json"
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("The study session could not be deleted.");
+                    }
+
+                    row.remove();
+
+                    if (!dayGroup.querySelector(".study-block-row")) {
+                        dayGroup.remove();
+                    }
+
+                    const rows = document.querySelectorAll(".study-block-row");
+                    const count = document.querySelector(".study-plan-count");
+                    count.textContent = rows.length === 1
+                        ? "1 session"
+                        : `${rows.length} sessions`;
+
+                    const summaryValues = document.querySelectorAll(
+                        ".study-plan-summary-card strong"
+                    );
+                    if (summaryValues.length >= 2) {
+                        summaryValues[0].textContent = document.querySelectorAll(
+                            '.study-block-row[data-status="planned"]'
+                        ).length;
+                        summaryValues[1].textContent = document.querySelectorAll(
+                            '.study-block-row[data-status="completed"]'
+                        ).length;
+                    }
+
+                    if (rows.length === 0) {
+                        document.querySelector(".study-block-list").innerHTML = `
+                            <div class="study-plan-empty">
+                                <span>✦</span>
+                                <h3>No study sessions planned yet.</h3>
+                                <p>Choose your availability and let Planet build your next plan.</p>
+                                <div class="study-plan-empty-actions">
+                                    <button type="button" class="secondary-button open-session-button" onclick="prepareNewSession()">
+                                        Add my own session
+                                    </button>
+                                    <button type="submit" class="primary-button" form="plan-selection-form">
+                                        Generate my plan
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    window.alert(error.message);
+                    button.disabled = false;
+                }
+            });
+        });
+
+        const plannedSessionsCard = document.getElementById("planned-sessions");
+        const standardSessionControls = document.getElementById("standard-session-controls");
+        const bulkActions = document.getElementById("study-bulk-actions");
+        const selectSessionsButton = document.getElementById("select-sessions-button");
+        const selectAllButton = document.getElementById("select-all-sessions");
+        const deleteSelectedButton = document.getElementById("delete-selected-sessions");
+        const cancelSelectionButton = document.getElementById("cancel-session-selection");
+        const selectedSessionCount = document.getElementById("selected-session-count");
+        const bulkDeleteAction = "{{ url_for('delete_selected_study_blocks') }}";
+
+        function selectedSessionCheckboxes() {
+            return [...document.querySelectorAll(".study-session-checkbox:checked")];
+        }
+
+        function updateBulkSelection() {
+            const checkboxes = [...document.querySelectorAll(".study-session-checkbox")];
+            const selected = selectedSessionCheckboxes();
+            selectedSessionCount.textContent = `(${selected.length})`;
+            deleteSelectedButton.disabled = selected.length === 0;
+            selectAllButton.textContent = checkboxes.length > 0
+                && selected.length === checkboxes.length
+                ? "Clear all"
+                : "Select all";
+        }
+
+        function closeSelectionMode() {
+            plannedSessionsCard.classList.remove("is-selecting");
+            document.querySelectorAll(".study-session-checkbox").forEach((checkbox) => {
+                checkbox.checked = false;
+            });
+            standardSessionControls.hidden = false;
+            bulkActions.hidden = true;
+            updateBulkSelection();
+        }
+
+        if (selectSessionsButton) {
+            selectSessionsButton.addEventListener("click", () => {
+                plannedSessionsCard.classList.add("is-selecting");
+                standardSessionControls.hidden = true;
+                bulkActions.hidden = false;
+                updateBulkSelection();
+            });
+        }
+
+        document.querySelectorAll(".study-session-checkbox").forEach((checkbox) => {
+            checkbox.addEventListener("change", updateBulkSelection);
+        });
+
+        selectAllButton.addEventListener("click", () => {
+            const checkboxes = [...document.querySelectorAll(".study-session-checkbox")];
+            const shouldSelect = selectedSessionCheckboxes().length !== checkboxes.length;
+            checkboxes.forEach((checkbox) => {
+                checkbox.checked = shouldSelect;
+            });
+            updateBulkSelection();
+        });
+
+        cancelSelectionButton.addEventListener("click", closeSelectionMode);
+
+        deleteSelectedButton.addEventListener("click", async () => {
+            const selected = selectedSessionCheckboxes();
+            const sessionIds = selected.map((checkbox) => Number(checkbox.value));
+            if (!sessionIds.length) return;
+
+            const noun = sessionIds.length === 1 ? "session" : "sessions";
+            if (!window.confirm(`Delete ${sessionIds.length} selected study ${noun}?`)) return;
+
+            deleteSelectedButton.disabled = true;
+
+            try {
+                const response = await fetch(bulkDeleteAction, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify({ block_ids: sessionIds })
+                });
+
+                if (!response.ok) {
+                    throw new Error("The selected sessions could not be deleted.");
+                }
+
+                const result = await response.json();
+                const deletedIds = new Set(result.deleted_ids.map(String));
+
+                document.querySelectorAll(".study-session-checkbox").forEach((checkbox) => {
+                    if (deletedIds.has(checkbox.value)) {
+                        checkbox.closest(".study-block-row").remove();
+                    }
+                });
+
+                document.querySelectorAll(".study-day-group").forEach((group) => {
+                    if (!group.querySelector(".study-block-row")) group.remove();
+                });
+
+                const rows = document.querySelectorAll(".study-block-row");
+                document.querySelector(".study-plan-count").textContent = rows.length === 1
+                    ? "1 session"
+                    : `${rows.length} sessions`;
+
+                const summaryValues = document.querySelectorAll(
+                    ".study-plan-summary-card strong"
+                );
+                if (summaryValues.length >= 2) {
+                    summaryValues[0].textContent = document.querySelectorAll(
+                        '.study-block-row[data-status="planned"]'
+                    ).length;
+                    summaryValues[1].textContent = document.querySelectorAll(
+                        '.study-block-row[data-status="completed"]'
+                    ).length;
+                }
+
+                closeSelectionMode();
+
+                if (rows.length === 0) {
+                    standardSessionControls.innerHTML = `
+                        <span class="study-plan-count">0 sessions</span>
+                    `;
+                    document.querySelector(".study-block-list").innerHTML = `
+                        <div class="study-plan-empty">
+                            <span>✦</span>
+                            <h3>No study sessions planned yet.</h3>
+                            <p>Choose your availability and let Planet build your next plan.</p>
+                            <div class="study-plan-empty-actions">
+                                <button type="button" class="secondary-button" onclick="prepareNewSession()">
+                                    Add my own session
+                                </button>
+                                <button type="submit" class="primary-button" form="plan-selection-form">
+                                    Generate my plan
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                window.alert(error.message);
+                deleteSelectedButton.disabled = false;
+            }
+        });
+
         document.getElementById("study-plan-search").addEventListener("input", (event) => {
             const query = event.target.value.trim().toLowerCase();
             document.querySelectorAll(
                 ".study-course-card, .study-block-row, .assessment-plan-item"
             ).forEach((item) => {
-                item.hidden = query !== ""
-                    && !item.textContent.toLowerCase().includes(query);
+                item.classList.toggle(
+                    "planet-search-hidden",
+                    query !== "" && !item.textContent.toLowerCase().includes(query)
+                );
             });
         });
 

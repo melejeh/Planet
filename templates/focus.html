@@ -14,6 +14,7 @@
     >
 
     <title>Focus | Planet</title>
+    <style>.planet-search-hidden { display: none !important; }</style>
 </head>
 
 <body class="dashboard-body">
@@ -24,6 +25,7 @@
         <main class="dashboard-main">
             <header class="dashboard-topbar">
                 <input
+                    id="focus-search"
                     type="search"
                     placeholder="Search your study sessions..."
                 >
@@ -1477,6 +1479,16 @@
 
         timerUpdatedAt = Date.now();
         persistTimer();
+    });
+
+    document.getElementById("focus-search").addEventListener("input", function (event) {
+        const query = event.target.value.trim().toLowerCase();
+        document.querySelectorAll(".focus-session-item").forEach(function (sessionItem) {
+            sessionItem.classList.toggle(
+                "planet-search-hidden",
+                query !== "" && !sessionItem.textContent.toLowerCase().includes(query)
+            );
+        });
     });
 
     restoreTimer();

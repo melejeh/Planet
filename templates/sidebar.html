@@ -1,4 +1,3 @@
-
 <aside class="sidebar">
     <div class="sidebar-logo">
         <span class="logo-icon">P</span>
@@ -95,14 +94,10 @@
 
 <script>
     (function () {
-        const savedTheme = localStorage.getItem("planetTheme");
-        const savedCompact = localStorage.getItem("planetCompact");
-        const theme = savedTheme || "{{ planet_theme|default('editorial') }}";
-        const compact = savedCompact !== null
-            ? savedCompact
-            : "{{ 'true' if planet_compact|default(false) else 'false' }}";
-
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.dataset.compact = compact;
+        /* The database is the single source of truth for appearance. */
+        localStorage.removeItem("planetTheme");
+        localStorage.removeItem("planetCompact");
+        document.documentElement.dataset.theme = "{{ planet_theme|default('editorial') }}";
+        document.documentElement.dataset.compact = "{{ 'true' if planet_compact|default(false) else 'false' }}";
     })();
 </script>
