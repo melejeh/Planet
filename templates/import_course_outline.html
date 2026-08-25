@@ -37,7 +37,7 @@
                     <span></span><p id="outline-progress-text">Reading your screenshot…</p>
                 </div>
                 <p class="settings-message error" id="outline-client-error" hidden></p>
-                <button class="dark-button outline-read-button" id="outline-submit-button" type="submit" disabled>Choose a file</button>
+                <button class="dark-button outline-read-button" id="outline-submit-button" type="submit" disabled>Choose a file first</button>
             </form>
             {% if error %}<p class="form-error timetable-error">{{ error }}</p>{% endif %}
                 </section>
@@ -49,6 +49,12 @@
                     <div><p class="eyebrow">STEP 2</p><h2>Review assessments</h2></div>
                 </div>
                 <p class="outline-review-note">PDF and image layouts vary, so check the names, weights and dates. If the outline lists alternative weightings, Planet starts with the first option.</p>
+                {% if warning %}
+                    <div class="outline-import-warning" role="alert">
+                        <strong>Check the detected weights</strong>
+                        <p>{{ warning }}</p>
+                    </div>
+                {% endif %}
                 <form method="POST" action="{{ url_for('confirm_course_outline_import', course_id=course['id']) }}">
                     <div id="outline-review-list" class="timetable-review-list">
                         {% for assessment in assessments %}

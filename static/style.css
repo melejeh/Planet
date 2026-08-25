@@ -6436,6 +6436,16 @@ form button:hover {
 .course-outline-import-link:hover { text-decoration: underline; }
 .outline-read-button { margin-top: 18px; }
 .outline-review-note { margin: -4px 0 22px; color: var(--muted); line-height: 1.55; }
+.outline-import-warning {
+    margin: 0 0 20px;
+    padding: 15px 17px;
+    border: 1px solid #e2c779;
+    border-radius: 14px;
+    background: #fff8df;
+    color: #765d1d;
+}
+.outline-import-warning strong { display: block; margin-bottom: 4px; font-size: 13px; }
+.outline-import-warning p { margin: 0; font-size: 13px; line-height: 1.5; }
 .outline-assessment-row {
     position: relative;
     display: grid;
