@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import course outline · Planet</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        {% set active_page = "semester" %}
+        {% include "sidebar.html" %}
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <a class="text-button" href="{{ url_for('course_details', course_id=course['id']) }}">← Back to course</a>
+            </header>
+            <section class="timetable-import-content">
+                <header class="timetable-import-heading">
+                    <p class="eyebrow">COURSE OUTLINE · {{ course['code'] }}</p>
+                    <h1>Import course outline</h1>
+                    <p>Upload a PDF or a screenshot, then review every assessment before Planet saves it.</p>
+                </header>
+
+                <section class="settings-card timetable-upload-card">
+            <div class="timetable-step-heading">
+                <span>1</span>
+                <div><p class="eyebrow">STEP 1</p><h2>Choose the PDF or screenshot</h2></div>
+            </div>
+            <form method="POST" enctype="multipart/form-data" id="outline-upload-form">
+                <label class="timetable-drop-zone" for="course-outline-file">
+                    <strong>Choose a PDF or evaluation screenshot</strong>
+                    <small>PNG, JPG, WEBP or PDF · maximum 8 MB</small>
+                    <input id="course-outline-file" name="course_outline" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp" required>
+                </label>
+                <input type="hidden" name="extracted_text" id="outline-extracted-text">
+                <div class="timetable-progress" id="outline-progress" hidden>
+                    <span></span><p id="outline-progress-text">Reading your screenshot…</p>
+                </div>
+                <p class="settings-message error" id="outline-client-error" hidden></p>
+                <button class="dark-button outline-read-button" id="outline-submit-button" type="submit" disabled>Choose a file</button>
+            </form>
+            {% if error %}<p class="form-error timetable-error">{{ error }}</p>{% endif %}
+                </section>
+
+        {% if assessments or error %}
+                    <section class="settings-card timetable-review-card">
+                <div class="timetable-step-heading">
+                    <span>2</span>
+                    <div><p class="eyebrow">STEP 2</p><h2>Review assessments</h2></div>
+                </div>
+                <p class="outline-review-note">PDF and image layouts vary, so check the names, weights and dates. If the outline lists alternative weightings, Planet starts with the first option.</p>
+                <form method="POST" action="{{ url_for('confirm_course_outline_import', course_id=course['id']) }}">
+                    <div id="outline-review-list" class="timetable-review-list">
+                        {% for assessment in assessments %}
+                            <article class="outline-assessment-row">
+                                <label>Assessment<input name="assessment_name" value="{{ assessment['name'] }}" required></label>
+                                <label>Weight (%)<input name="weight" type="number" min="0" max="100" step="0.1" value="{{ assessment['weight'] }}" required></label>
+                                <label>Due date<input name="due_date" type="date" value="{{ assessment['due_date'] }}"></label>
+                                {% if assessment['alternative_weight'] %}
+                                    <small class="outline-alternative">Alternative: {{ assessment['alternative_weight'] }}%</small>
+                                {% endif %}
+                                <button type="button" class="timetable-remove-row" aria-label="Remove assessment">×</button>
+                            </article>
+                        {% endfor %}
+                    </div>
+                    <div class="timetable-review-actions">
+                        <button type="button" class="secondary-button" id="add-outline-row">＋ Add another assessment</button>
+                        <button type="submit" class="dark-button">Import assessments</button>
+                    </div>
+                </form>
+                    </section>
+        {% endif %}
+            </section>
+        </main>
+    </div>
+
+    <template id="outline-row-template">
+        <article class="outline-assessment-row">
+            <label>Assessment<input name="assessment_name" required></label>
+            <label>Weight (%)<input name="weight" type="number" min="0" max="100" step="0.1" required></label>
+            <label>Due date<input name="due_date" type="date"></label>
+            <button type="button" class="timetable-remove-row" aria-label="Remove assessment">×</button>
+        </article>
+    </template>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script>
+        const list = document.getElementById("outline-review-list");
+        const template = document.getElementById("outline-row-template");
+        document.querySelectorAll(".outline-assessment-row .timetable-remove-row").forEach(button => {
+            button.addEventListener("click", () => button.closest(".outline-assessment-row").remove());
+        });
+        document.getElementById("add-outline-row")?.addEventListener("click", () => {
+            const row = template.content.firstElementChild.cloneNode(true);
+            row.querySelector(".timetable-remove-row").addEventListener("click", () => row.remove());
+            list.appendChild(row);
+        });
+
+        const uploadForm = document.getElementById("outline-upload-form");
+        const outlineFile = document.getElementById("course-outline-file");
+        const extractedText = document.getElementById("outline-extracted-text");
+        const outlineProgress = document.getElementById("outline-progress");
+        const outlineProgressText = document.getElementById("outline-progress-text");
+        const outlineClientError = document.getElementById("outline-client-error");
+        const outlineSubmitButton = document.getElementById("outline-submit-button");
+
+        outlineFile.addEventListener("change", async () => {
+            const file = outlineFile.files[0];
+            extractedText.value = "";
+            outlineClientError.hidden = true;
+            outlineProgress.hidden = true;
+            outlineProgress.classList.remove("is-complete");
+            outlineSubmitButton.disabled = true;
+            outlineSubmitButton.textContent = "Choose a file first";
+            if (!file) return;
+            if (file.size > 8 * 1024 * 1024) {
+                outlineClientError.textContent = "Choose a file smaller than 8 MB.";
+                outlineClientError.hidden = false;
+                return;
+            }
+            if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+                outlineSubmitButton.disabled = false;
+                outlineSubmitButton.textContent = "Read course outline";
+                return;
+            }
+            if (!window.Tesseract) {
+                outlineClientError.textContent = "The screenshot reader could not load. Check your connection and try again.";
+                outlineClientError.hidden = false;
+                return;
+            }
+            outlineProgress.hidden = false;
+            outlineProgressText.textContent = "Reading your screenshot… 0%";
+            outlineSubmitButton.textContent = "Reading screenshot…";
+            try {
+                const worker = await Tesseract.createWorker("eng", 1, {
+                    logger: message => {
+                        if (message.status === "recognizing text" && Number.isFinite(message.progress)) {
+                            outlineProgressText.textContent = `Reading your screenshot… ${Math.round(message.progress * 100)}%`;
+                        }
+                    }
+                });
+                await worker.setParameters({tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK});
+                const result = await worker.recognize(file);
+                await worker.terminate();
+                extractedText.value = result.data.text || "";
+                outlineProgress.classList.add("is-complete");
+                outlineProgressText.textContent = "Screenshot ready · 100%";
+                outlineSubmitButton.disabled = false;
+                outlineSubmitButton.textContent = "Review detected assessments";
+            } catch (error) {
+                outlineClientError.textContent = "Planet could not read that screenshot. Try cropping around the evaluation table.";
+                outlineClientError.hidden = false;
+                outlineProgress.hidden = true;
+                outlineSubmitButton.disabled = true;
+                outlineSubmitButton.textContent = "Choose another screenshot";
+            }
+        });
+
+        uploadForm.addEventListener("submit", event => {
+            const file = outlineFile.files[0];
+            const isImage = file && !(file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
+            if (isImage && !extractedText.value.trim()) event.preventDefault();
+        });
+    </script>
+</body>
+</html>

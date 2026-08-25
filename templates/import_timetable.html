@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ planet_theme|default('editorial') }}" data-compact="{{ 'true' if planet_compact else 'false' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='timetable-import-1') }}">
+    <title>Import timetable | Planet</title>
+</head>
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        {% set active_page = "semester" %}
+        {% include "sidebar.html" %}
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <a class="text-button" href="{{ url_for('semester') }}">← Back to courses</a>
+            </header>
+
+            <section class="timetable-import-content">
+                <header class="timetable-import-heading">
+                    <p class="eyebrow">{{ active_semester['name'] }}</p>
+                    <h1>Import timetable</h1>
+                    <p>Upload a screenshot, review what Planet reads, then choose exactly what to save.</p>
+                </header>
+
+                <section class="settings-card timetable-upload-card" id="upload-card">
+                    <div class="settings-card-heading">
+                        <div><p class="eyebrow">STEP 1</p><h2>Choose your screenshot</h2></div>
+                        <span>PNG, JPG or WEBP · maximum 10 MB</span>
+                    </div>
+                    <label class="timetable-drop-zone" for="timetable-file">
+                        <input id="timetable-file" type="file" accept="image/png,image/jpeg,image/webp">
+                        <span class="timetable-upload-icon">▦</span>
+                        <strong>Upload timetable screenshot</strong>
+                        <small>Use a clear weekly view with the course blocks and times visible.</small>
+                    </label>
+                    <div class="timetable-progress" id="timetable-progress" hidden>
+                        <span></span><p id="timetable-progress-text">Reading your timetable…</p>
+                    </div>
+                    <p class="settings-message error" id="timetable-error" hidden></p>
+                </section>
+
+                <section class="settings-card timetable-review-card" id="review-card" hidden>
+                    <div class="settings-card-heading">
+                        <div><p class="eyebrow">STEP 2</p><h2>Review detected courses</h2></div>
+                        <span>Correct anything before saving</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('confirm_timetable_import') }}" id="timetable-confirm-form">
+                        <div class="timetable-review-list" id="timetable-review-list"></div>
+                        <div class="timetable-review-actions">
+                            <button type="button" class="secondary-button" id="add-import-row">＋ Add another course</button>
+                            <button type="submit" class="dark-button">Import selected courses</button>
+                        </div>
+                    </form>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <template id="course-import-row-template">
+        <article class="timetable-course-row">
+            <label class="timetable-import-check"><input type="checkbox" checked><span>✓</span></label>
+            <label>Course code<input name="course_code" type="text" required></label>
+            <label>Course name<input name="course_name" type="text" placeholder="Add the full course name"></label>
+            <label>Schedule<input name="schedule" type="text" placeholder="Mon, Wed · 8:30–9:30 AM"></label>
+            <label>Colour<select name="colour"><option value="berry">Berry</option><option value="sage">Sage</option><option value="gold">Gold</option></select></label>
+            <button type="button" class="timetable-remove-row" aria-label="Remove course">×</button>
+        </article>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script>
+        const fileInput = document.getElementById("timetable-file");
+        const progress = document.getElementById("timetable-progress");
+        const progressText = document.getElementById("timetable-progress-text");
+        const errorBox = document.getElementById("timetable-error");
+        const reviewCard = document.getElementById("review-card");
+        const reviewList = document.getElementById("timetable-review-list");
+        const rowTemplate = document.getElementById("course-import-row-template");
+        const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+        const colourCycle = ["berry", "sage", "gold"];
+
+        function addCourseRow(course = {}) {
+            const row = rowTemplate.content.firstElementChild.cloneNode(true);
+            row.querySelector('[name="course_code"]').value = course.code || "";
+            row.querySelector('[name="course_name"]').value = course.name || "";
+            row.querySelector('[name="schedule"]').value = course.schedule || "";
+            row.querySelector('[name="colour"]').value = course.colour || colourCycle[reviewList.children.length % colourCycle.length];
+            const enabled = row.querySelector('.timetable-import-check input');
+            enabled.addEventListener("change", () => {
+                row.classList.toggle("is-excluded", !enabled.checked);
+                row.querySelectorAll("input[name], select[name]").forEach(field => field.disabled = !enabled.checked);
+            });
+            row.querySelector(".timetable-remove-row").addEventListener("click", () => row.remove());
+            reviewList.appendChild(row);
+        }
+
+        function tidyTime(value) {
+            const cleaned = value.replace(/\s+/g, " ").replace(/(\d)\s*[:.]\s*(\d{2})/g, "$1:$2").trim();
+            const parts = cleaned.split(":");
+            let hour = Number(parts[0]);
+            if (hour >= 1 && hour <= 7) hour += 12;
+            return `${String(hour).padStart(2, "0")}:${parts[1]}`;
+        }
+
+        function preprocessTimetable(image) {
+            const source = document.createElement("canvas");
+            source.width = image.naturalWidth;
+            source.height = image.naturalHeight;
+            const sourceContext = source.getContext("2d", {willReadFrequently: true});
+            sourceContext.drawImage(image, 0, 0);
+            const sourcePixels = sourceContext.getImageData(0, 0, source.width, source.height);
+            const output = document.createElement("canvas");
+            output.width = source.width;
+            output.height = source.height;
+            const outputContext = output.getContext("2d");
+            outputContext.fillStyle = "white";
+            outputContext.fillRect(0, 0, output.width, output.height);
+            const processed = outputContext.getImageData(0, 0, output.width, output.height);
+            const pixelAt = (x, y) => {
+                const offset = (Math.floor(y) * source.width + Math.floor(x)) * 4;
+                return [sourcePixels.data[offset], sourcePixels.data[offset + 1], sourcePixels.data[offset + 2]];
+            };
+            let gridStart = source.width * 0.093;
+            let strongestGridLine = -1;
+            for (let x = Math.floor(source.width * 0.04); x < Math.floor(source.width * 0.22); x += 1) {
+                let score = 0;
+                for (let y = 60; y < source.height; y += 3) {
+                    const [r, g, b] = pixelAt(x, y);
+                    if (Math.max(r, g, b) - Math.min(r, g, b) < 8 && r > 185 && r < 245) score += 1;
+                }
+                if (score > strongestGridLine) {
+                    strongestGridLine = score;
+                    gridStart = x;
+                }
+            }
+            const columnWidth = (source.width - gridStart) / 5;
+
+            for (let day = 0; day < 5; day += 1) {
+                const centreX = gridStart + columnWidth * (day + 0.5);
+                const scanX = Math.min(source.width - 1, centreX + columnWidth * 0.32);
+                const runs = [];
+                let runStart = null;
+                let previousColour = null;
+                for (let y = 20; y < source.height; y += 1) {
+                    const [r, g, b] = pixelAt(scanX, y);
+                    const active = Math.max(r, g, b) - Math.min(r, g, b) > 18 && Math.min(r, g, b) < 245;
+                    const changedBlock = previousColour && Math.sqrt(
+                        ((r - previousColour[0]) ** 2) + ((g - previousColour[1]) ** 2) + ((b - previousColour[2]) ** 2)
+                    ) > 28;
+                    if (active && runStart === null) runStart = y;
+                    else if (active && runStart !== null && changedBlock && y - runStart > 35) {
+                        runs.push([runStart, y - 1]);
+                        runStart = y;
+                    }
+                    if (!active && runStart !== null) {
+                        if (y - runStart > 35) runs.push([runStart, y - 1]);
+                        runStart = null;
+                    }
+                    previousColour = active ? [r, g, b] : null;
+                }
+                if (runStart !== null && source.height - runStart > 35) runs.push([runStart, source.height - 1]);
+
+                runs.forEach(([y0, y1]) => {
+                    const x0 = Math.max(gridStart, centreX - columnWidth * 0.48);
+                    const x1 = Math.min(source.width - 1, centreX + columnWidth * 0.48);
+                    const samples = [];
+                    for (let y = y0 + 8; y < Math.min(y0 + 25, y1); y += 1) {
+                        for (let x = x0 + 8; x < Math.min(x0 + 30, x1); x += 1) samples.push(pixelAt(x, y));
+                    }
+                    samples.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
+                    const background = samples[Math.floor(samples.length / 2)] || [255, 255, 255];
+                    const backgroundLightness = (background[0] + background[1] + background[2]) / 3;
+                    for (let y = y0; y <= y1; y += 1) {
+                        for (let x = Math.floor(x0); x <= Math.floor(x1); x += 1) {
+                            const colour = pixelAt(x, y);
+                            const distance = Math.sqrt(colour.reduce((total, channel, index) => total + ((channel - background[index]) ** 2), 0));
+                            const lightness = (colour[0] + colour[1] + colour[2]) / 3;
+                            if (distance > 45 || lightness < backgroundLightness - 32) {
+                                const offset = (y * output.width + x) * 4;
+                                processed.data[offset] = 0;
+                                processed.data[offset + 1] = 0;
+                                processed.data[offset + 2] = 0;
+                                processed.data[offset + 3] = 255;
+                            }
+                        }
+                    }
+                });
+            }
+            outputContext.putImageData(processed, 0, 0);
+            return {canvas: output, gridStart};
+        }
+
+        function parseTimetable(lines, imageWidth, detectedGridStart) {
+            const meetings = [];
+            const codePattern = /\b([A-Z]{2,})\s*(\d{3,4}[A-Z]?)\b/i;
+            const timePattern = /(\d{1,2}[:.]\d{2})\s*[-–]\s*(\d{1,2}[:.]\d{2})/;
+            const sorted = lines
+                .filter(line => line.text && line.bbox)
+                .map(line => ({
+                    ...line,
+                    clean: line.text
+                        .replace(/[^A-Za-z0-9:./&()\-– ]/g, " ")
+                        .replace(/\s+/g, " ")
+                        .replace(/\b([A-Z]{2,}\s+\d{4})4\b/g, "$1A")
+                        .trim()
+                }))
+                .sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
+
+            sorted.forEach((line, index) => {
+                const match = line.clean.match(codePattern);
+                if (!match) return;
+                if (["LEC", "LAB", "TUT", "SEM", "PRA"].includes(match[1].toUpperCase())) return;
+                const code = `${match[1].toUpperCase()} ${match[2].toUpperCase()}`.replace(/\s+/g, " ");
+                const centreX = (line.bbox.x0 + line.bbox.x1) / 2;
+                const gridStart = detectedGridStart || imageWidth * 0.08;
+                const columnWidth = (imageWidth - gridStart) / 5;
+                const dayIndex = Math.max(0, Math.min(4, Math.floor((centreX - gridStart) / columnWidth)));
+                let time = "";
+                let meetingType = "";
+                let closestDistance = Number.POSITIVE_INFINITY;
+                sorted.forEach(candidate => {
+                    const verticalDistance = candidate.bbox.y0 - line.bbox.y1;
+                    const candidateCentre = (candidate.bbox.x0 + candidate.bbox.x1) / 2;
+                    if (verticalDistance < 0 || verticalDistance > imageWidth * 0.15) return;
+                    if (Math.abs(candidateCentre - centreX) > columnWidth * 0.45) return;
+                    const timeMatch = candidate.clean.match(timePattern);
+                    if (timeMatch && verticalDistance < closestDistance) {
+                        time = `${tidyTime(timeMatch[1])}–${tidyTime(timeMatch[2])}`;
+                        closestDistance = verticalDistance;
+                    }
+                });
+                let closestTypeDistance = Number.POSITIVE_INFINITY;
+                sorted.forEach(candidate => {
+                    const verticalDistance = candidate.bbox.y0 - line.bbox.y1;
+                    const candidateCentre = (candidate.bbox.x0 + candidate.bbox.x1) / 2;
+                    if (verticalDistance < -5 || verticalDistance > imageWidth * 0.08) return;
+                    if (Math.abs(candidateCentre - centreX) > columnWidth * 0.45) return;
+                    const typeMatch = candidate.clean.match(/\b(LEC|LAB|TUT|SEM|PRA)\b/i);
+                    if (typeMatch && verticalDistance < closestTypeDistance) {
+                        meetingType = typeMatch[1].toUpperCase();
+                        closestTypeDistance = verticalDistance;
+                    }
+                });
+                meetings.push({code, day: dayNames[dayIndex], time, meetingType});
+            });
+
+            const grouped = new Map();
+            meetings.forEach(meeting => {
+                if (!grouped.has(meeting.code)) grouped.set(meeting.code, []);
+                if (!grouped.get(meeting.code).some(item => item.day === meeting.day && item.time === meeting.time && item.meetingType === meeting.meetingType)) {
+                    grouped.get(meeting.code).push(meeting);
+                }
+            });
+
+            return [...grouped.entries()].map(([code, items], index) => ({
+                code,
+                name: "",
+                schedule: items.map(item => `${item.day}${item.meetingType ? ` ${item.meetingType}` : ""}${item.time ? ` ${item.time}` : ""}`).join(", "),
+                colour: colourCycle[index % colourCycle.length]
+            }));
+        }
+
+        fileInput.addEventListener("change", async () => {
+            const file = fileInput.files[0];
+            errorBox.hidden = true;
+            reviewCard.hidden = true;
+            reviewList.innerHTML = "";
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) {
+                errorBox.textContent = "Choose an image smaller than 10 MB.";
+                errorBox.hidden = false;
+                return;
+            }
+            if (!window.Tesseract) {
+                errorBox.textContent = "The timetable reader could not load. Check your connection and try again.";
+                errorBox.hidden = false;
+                return;
+            }
+
+            progress.hidden = false;
+            progressText.textContent = "Reading your timetable…";
+            try {
+                const image = new Image();
+                const imageUrl = URL.createObjectURL(file);
+                await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = imageUrl; });
+                const worker = await Tesseract.createWorker("eng", 1, {
+                    logger: message => {
+                        if (message.status === "recognizing text") {
+                            progressText.textContent = `Reading your timetable… ${Math.round(message.progress * 100)}%`;
+                        }
+                    }
+                });
+                await worker.setParameters({tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT});
+                const processedTimetable = preprocessTimetable(image);
+                const result = await worker.recognize(processedTimetable.canvas);
+                await worker.terminate();
+                URL.revokeObjectURL(imageUrl);
+                const courses = parseTimetable(result.data.lines || [], image.naturalWidth, processedTimetable.gridStart);
+                if (!courses.length) throw new Error("Planet could not confidently find course codes. Try a clearer screenshot or add the courses in the review manually.");
+                courses.forEach(addCourseRow);
+                reviewCard.hidden = false;
+                reviewCard.scrollIntoView({behavior: "smooth", block: "start"});
+            } catch (error) {
+                errorBox.textContent = error.message || "Planet could not read that timetable.";
+                errorBox.hidden = false;
+                reviewCard.hidden = false;
+                addCourseRow();
+            } finally {
+                progress.hidden = true;
+            }
+        });
+
+        document.getElementById("add-import-row").addEventListener("click", () => addCourseRow());
+    </script>
+</body>
+</html>

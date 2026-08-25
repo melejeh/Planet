@@ -7,5 +7,6 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 MarkupSafe==3.0.3
 packaging==26.3
+pypdf==6.0.0
 Werkzeug==3.1.8
 zipp==3.23.1
