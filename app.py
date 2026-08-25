@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from flask import (
@@ -19,7 +20,10 @@ from werkzeug.security import (
 app = Flask(__name__)
 
 # Used to protect Flask sessions during local development.
-app.secret_key = "planet-development-key"
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "planet-local-development-key"
+)
 
 
 @app.route("/")
