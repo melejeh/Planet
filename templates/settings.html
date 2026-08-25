@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Settings | Planet</title>
+</head>
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+        {% set active_page = "settings" %}
+        {% include "sidebar.html" %}
+
+        <main class="dashboard-main">
+            <header class="dashboard-topbar">
+                <input type="search" placeholder="Search your settings..." id="settings-search">
+            </header>
+
+            <section class="settings-content">
+                <header class="settings-heading">
+                    <p class="eyebrow">MAKE IT YOURS</p>
+                    <h1>Settings</h1>
+                    <p>Customize how Planet plans, looks and works for you.</p>
+                </header>
+
+                {% if saved %}<div class="settings-message success">{{ saved }}</div>{% endif %}
+                {% if error %}<div class="settings-message error">{{ error }}</div>{% endif %}
+
+                <form method="POST" class="settings-form" id="settings-form">
+                    <section class="settings-card" data-settings-section>
+                        <div class="settings-card-heading"><div><p class="eyebrow">PLANNING</p><h2>Planning preferences</h2></div><span>How Planet makes suggestions</span></div>
+                        <label class="settings-toggle-row">
+                            <span><strong>Reschedule missed study blocks</strong><small>Offer a new time when a planned session is missed.</small></span>
+                            <input type="checkbox" name="reschedule_missed" {% if preferences['reschedule_missed'] %}checked{% endif %}><i></i>
+                        </label>
+                        <label class="settings-toggle-row">
+                            <span><strong>Use grade targets to prioritize courses</strong><small>Give more attention to courses that need improvement.</small></span>
+                            <input type="checkbox" name="grade_priority" {% if preferences['grade_priority'] %}checked{% endif %}><i></i>
+                        </label>
+                        <label class="settings-toggle-row">
+                            <span><strong>Allow weekend study blocks</strong><small>Let the generator use Saturday and Sunday.</small></span>
+                            <input type="checkbox" name="allow_weekends" {% if preferences['allow_weekends'] %}checked{% endif %}><i></i>
+                        </label>
+                    </section>
+
+                    <section class="settings-card" data-settings-section>
+                        <div class="settings-card-heading"><div><p class="eyebrow">STUDY PLAN</p><h2>Study preferences</h2></div><span>Used by the study generator</span></div>
+                        <div class="settings-field-grid">
+                            <label>Earliest study time<input type="time" name="earliest_time" value="{{ study_preferences['earliest_time'] }}" required></label>
+                            <label>Latest study time<input type="time" name="latest_time" value="{{ study_preferences['latest_time'] }}" required></label>
+                            <label>Weekly target <span>(hours)</span><input type="number" name="weekly_target_hours" value="{{ study_preferences['weekly_target_hours'] }}" min="0.5" max="100" step="0.5" required></label>
+                            <label>Session length <span>(minutes)</span><input type="number" name="preferred_session_minutes" value="{{ study_preferences['preferred_session_minutes'] }}" min="10" max="240" step="5" required></label>
+                            <label>Break length <span>(minutes)</span><input type="number" name="break_minutes" value="{{ study_preferences['break_minutes'] }}" min="0" max="120" step="5" required></label>
+                        </div>
+                        <fieldset class="settings-days"><legend>Available study days</legend><div>
+                            {% for value, label in [('monday','Mon'),('tuesday','Tue'),('wednesday','Wed'),('thursday','Thu'),('friday','Fri'),('saturday','Sat'),('sunday','Sun')] %}
+                                <label><input type="checkbox" name="available_days" value="{{ value }}" {% if value in selected_days %}checked{% endif %}><span>{{ label }}</span></label>
+                            {% endfor %}
+                        </div></fieldset>
+                    </section>
+
+                    <section class="settings-card" data-settings-section>
+                        <div class="settings-card-heading"><div><p class="eyebrow">APPEARANCE</p><h2>Choose your Planet</h2></div><span>Changes every page</span></div>
+                        <div class="theme-options">
+                            {% for value, label, colours in [
+                                ('editorial','Editorial','#8f3c5b,#fbfaf6'),
+                                ('rose','Rose','#a83f68,#fff4f8'),
+                                ('sage','Sage','#617864,#f4f7f1'),
+                                ('espresso','Espresso','#76513f,#f8f2eb'),
+                                ('midnight','Midnight','#46516e,#f2f4f9')
+                            ] %}
+                                <label class="theme-option">
+                                    <input type="radio" name="theme" value="{{ value }}" {% if preferences['theme'] == value %}checked{% endif %}>
+                                    <span class="theme-preview"><i style="--theme-colours: linear-gradient(135deg, {{ colours }});"></i><strong>{{ label }}</strong></span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        <label class="settings-toggle-row compact-setting">
+                            <span><strong>Compact dashboard</strong><small>Reduce spacing so more information fits on screen.</small></span>
+                            <input type="checkbox" name="compact_dashboard" {% if preferences['compact_dashboard'] %}checked{% endif %}><i></i>
+                        </label>
+                    </section>
+
+                    <section class="settings-card" data-settings-section>
+                        <div class="settings-card-heading"><div><p class="eyebrow">ACCOUNT</p><h2>Your details</h2></div><span>Shown in your Planet profile</span></div>
+                        <div class="settings-field-grid account-fields">
+                            <label>First name<input type="text" name="first_name" value="{{ user['first_name'] }}" required></label>
+                            <label>Last name<input type="text" name="last_name" value="{{ user['last_name'] }}" required></label>
+                            <label>Email<input type="email" name="email" value="{{ user['email'] }}" required></label>
+                        </div>
+                    </section>
+
+                    <div class="settings-save-bar"><p>Your changes apply across Planet.</p><button type="submit" class="primary-button">Save settings</button></div>
+                </form>
+
+                <section class="settings-card quick-links-settings" id="quick-links" data-settings-section>
+                    <div class="settings-card-heading">
+                        <div><p class="eyebrow">QUICK LINKS</p><h2>Your school shortcuts</h2></div>
+                        <span>Shown on your dashboard</span>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('add_quick_link') }}" class="quick-link-form">
+                        <label>Link name<input type="text" name="name" placeholder="Student Centre" maxlength="60" required></label>
+                        <label>Website address<input type="url" name="url" placeholder="https://student.uwo.ca" required></label>
+                        <label>Category
+                            <select name="category">
+                                <option value="academics">Academics</option>
+                                <option value="learning">Learning</option>
+                                <option value="email">Email</option>
+                                <option value="library">Library</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </label>
+                        <button type="submit" class="primary-button">Add quick link</button>
+                    </form>
+
+                    {% if quick_links %}
+                        <div class="quick-link-settings-list">
+                            {% for link in quick_links %}
+                                <div class="quick-link-settings-row">
+                                    <span class="quick-link-icon {{ link['category'] }}">↗</span>
+                                    <div><strong>{{ link['name'] }}</strong><small>{{ link['url'] }}</small></div>
+                                    <span class="quick-link-category">{{ link['category']|capitalize }}</span>
+                                    <form method="POST" class="quick-link-delete-form" action="{{ url_for('delete_quick_link', link_id=link['id']) }}">
+                                        <button type="submit" class="text-button danger-text-button">Delete</button>
+                                    </form>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="quick-links-settings-empty">No quick links yet. Add your student portal, learning site, email or library.</p>
+                    {% endif %}
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.querySelectorAll('input[name="theme"]').forEach((input) => {
+            input.addEventListener("change", () => {
+                document.documentElement.dataset.theme = input.value;
+            });
+        });
+        document.querySelector('input[name="compact_dashboard"]').addEventListener("change", (event) => {
+            document.documentElement.dataset.compact = String(event.target.checked);
+        });
+        document.getElementById("settings-form").addEventListener("submit", () => {
+            localStorage.setItem("planetTheme", document.querySelector('input[name="theme"]:checked').value);
+            localStorage.setItem("planetCompact", String(document.querySelector('input[name="compact_dashboard"]').checked));
+        });
+        document.getElementById("settings-search").addEventListener("input", (event) => {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll("[data-settings-section]").forEach((section) => {
+                section.hidden = !section.textContent.toLowerCase().includes(query);
+            });
+        });
+
+        document.querySelectorAll(".quick-link-delete-form").forEach((form) => {
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                if (!window.confirm("Remove this quick link?")) {
+                    return;
+                }
+
+                const row = form.closest(".quick-link-settings-row");
+                const button = form.querySelector('button[type="submit"]');
+                button.disabled = true;
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: "POST",
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest",
+                            "Accept": "application/json"
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("The quick link could not be deleted.");
+                    }
+
+                    row.remove();
+
+                    const list = document.querySelector(".quick-link-settings-list");
+                    if (list && !list.querySelector(".quick-link-settings-row")) {
+                        list.outerHTML = '<p class="quick-links-settings-empty">No quick links yet. Add your student portal, learning site, email or library.</p>';
+                    }
+                } catch (error) {
+                    button.disabled = false;
+                    window.alert(error.message);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

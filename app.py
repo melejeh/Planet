@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from flask import (
     Flask,
     render_template,
@@ -186,6 +187,20 @@ def dashboard():
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (course_id) REFERENCES courses(id)
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS quick_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'other',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
         )
         """
     )
@@ -487,6 +502,16 @@ def dashboard():
         1 for goal in dashboard_goals if goal["is_complete"]
     )
 
+    quick_links = connection.execute(
+        """
+        SELECT * FROM quick_links
+        WHERE user_id = ?
+        ORDER BY name COLLATE NOCASE
+        LIMIT 8
+        """,
+        (session["user_id"],)
+    ).fetchall()
+
     connection.close()
 
     return render_template(
@@ -504,6 +529,7 @@ def dashboard():
         dashboard_tasks=dashboard_tasks,
         goal_total=goal_total,
         goal_completed=goal_completed,
+        quick_links=quick_links,
         today_full=now.strftime(
             "%A, %B %-d, %Y"
         )
@@ -1793,7 +1819,8 @@ def todo():
         SELECT
             courses.id,
             courses.code,
-            courses.name
+            courses.name,
+            courses.colour
 
         FROM courses
 
@@ -2012,7 +2039,8 @@ def edit_task(task_id):
         SELECT
             courses.id,
             courses.code,
-            courses.name
+            courses.name,
+            courses.colour
 
         FROM courses
 
@@ -3424,6 +3452,996 @@ def save_focus_timer():
         "duration_minutes": duration_minutes,
         "duration_seconds": elapsed_seconds
     }
+
+@app.route("/study-plan", methods=["GET", "POST"])
+def study_plan():
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    user_id = session["user_id"]
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS study_plan_settings (
+            user_id INTEGER PRIMARY KEY,
+            earliest_time TEXT NOT NULL DEFAULT '09:00',
+            latest_time TEXT NOT NULL DEFAULT '21:00',
+            weekly_target_hours REAL NOT NULL DEFAULT 8,
+            preferred_session_minutes INTEGER NOT NULL DEFAULT 45,
+            break_minutes INTEGER NOT NULL DEFAULT 10,
+            include_weekends INTEGER NOT NULL DEFAULT 1,
+            available_days TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS study_blocks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            course_id INTEGER,
+            assessment_id INTEGER,
+            title TEXT NOT NULL,
+            notes TEXT,
+            scheduled_date TEXT NOT NULL,
+            start_time TEXT NOT NULL,
+            end_time TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'planned',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (course_id) REFERENCES courses(id),
+            FOREIGN KEY (assessment_id) REFERENCES assessments(id)
+        )
+        """
+    )
+
+    study_block_columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(study_blocks)"
+        ).fetchall()
+    }
+    if "notes" not in study_block_columns:
+        connection.execute("ALTER TABLE study_blocks ADD COLUMN notes TEXT")
+    connection.commit()
+
+    if request.method == "POST":
+        earliest_time = request.form.get(
+            "earliest_time",
+            "09:00"
+        )
+        latest_time = request.form.get(
+            "latest_time",
+            "21:00"
+        )
+        weekly_target_hours = request.form.get(
+            "weekly_target_hours",
+            type=float
+        )
+        preferred_session_minutes = request.form.get(
+            "preferred_session_minutes",
+            type=int
+        )
+        break_minutes = request.form.get(
+            "break_minutes",
+            type=int
+        )
+
+        include_weekends = (
+            1
+            if request.form.get("include_weekends")
+            else 0
+        )
+
+        available_days = request.form.getlist(
+            "available_days"
+        )
+        available_days_text = ",".join(available_days)
+
+        if (
+            not earliest_time
+            or not latest_time
+            or weekly_target_hours is None
+            or weekly_target_hours <= 0
+            or preferred_session_minutes is None
+            or preferred_session_minutes <= 0
+            or break_minutes is None
+            or break_minutes < 0
+            or not available_days
+        ):
+            connection.close()
+
+            return redirect(
+                url_for(
+                    "study_plan",
+                    error="Please complete all study preferences."
+                )
+            )
+
+        if earliest_time >= latest_time:
+            connection.close()
+
+            return redirect(
+                url_for(
+                    "study_plan",
+                    error="Your latest study time must be later than your earliest time."
+                )
+            )
+
+        connection.execute(
+            """
+            INSERT INTO study_plan_settings (
+                user_id,
+                earliest_time,
+                latest_time,
+                weekly_target_hours,
+                preferred_session_minutes,
+                break_minutes,
+                include_weekends,
+                available_days
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id)
+            DO UPDATE SET
+                earliest_time = excluded.earliest_time,
+                latest_time = excluded.latest_time,
+                weekly_target_hours = excluded.weekly_target_hours,
+                preferred_session_minutes =
+                    excluded.preferred_session_minutes,
+                break_minutes = excluded.break_minutes,
+                include_weekends = excluded.include_weekends,
+                available_days = excluded.available_days
+            """,
+            (
+                user_id,
+                earliest_time,
+                latest_time,
+                weekly_target_hours,
+                preferred_session_minutes,
+                break_minutes,
+                include_weekends,
+                available_days_text
+            )
+        )
+
+        connection.commit()
+        connection.close()
+
+        return redirect(
+            url_for(
+                "study_plan",
+                saved="Study preferences saved."
+            )
+        )
+
+    settings = connection.execute(
+        """
+        SELECT *
+        FROM study_plan_settings
+        WHERE user_id = ?
+        """,
+        (user_id,)
+    ).fetchone()
+
+    if settings is None:
+        settings = {
+            "earliest_time": "09:00",
+            "latest_time": "21:00",
+            "weekly_target_hours": 8,
+            "preferred_session_minutes": 45,
+            "break_minutes": 10,
+            "include_weekends": 1,
+            "available_days":
+                "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+        }
+
+    selected_days = settings["available_days"].split(",")
+
+    active_semester_id = session.get(
+        "active_semester_id"
+    )
+
+    courses = []
+
+    if active_semester_id:
+     courses = connection.execute(
+        """
+        SELECT
+            courses.id,
+            courses.code,
+            courses.name,
+            courses.colour
+        FROM courses
+        JOIN semesters
+          ON semesters.id = courses.semester_id
+        WHERE semesters.user_id = ?
+          AND courses.semester_id = ?
+        ORDER BY
+            courses.code,
+            courses.name
+        """,
+        (
+            user_id,
+            active_semester_id
+        )
+    ).fetchall()
+    assessments = []
+
+    if active_semester_id:
+     assessments = connection.execute(
+        """
+        SELECT
+            assessments.id,
+            assessments.name,
+            assessments.due_date,
+            assessments.weight,
+            courses.id AS course_id,
+            courses.code AS course_code,
+            courses.name AS course_name
+        FROM assessments
+        JOIN courses
+          ON courses.id = assessments.course_id
+        JOIN semesters
+          ON semesters.id = courses.semester_id
+        WHERE semesters.user_id = ?
+          AND courses.semester_id = ?
+          AND assessments.score IS NULL
+          AND assessments.due_date IS NOT NULL
+        ORDER BY
+            assessments.due_date ASC,
+            assessments.weight DESC
+        """,
+        (
+            user_id,
+            active_semester_id
+        )
+    ).fetchall()
+
+    study_blocks = connection.execute(
+        """
+        SELECT
+            study_blocks.*,
+            courses.code AS course_code,
+            courses.name AS course_name,
+            courses.colour AS course_colour,
+            assessments.name AS assessment_name
+        FROM study_blocks
+        LEFT JOIN courses
+          ON courses.id = study_blocks.course_id
+        LEFT JOIN assessments
+          ON assessments.id = study_blocks.assessment_id
+        WHERE study_blocks.user_id = ?
+        ORDER BY
+            study_blocks.scheduled_date ASC,
+            study_blocks.start_time ASC
+        """,
+        (user_id,)
+    ).fetchall()
+
+    # Prepare the course cards here rather than making Jinja recalculate them.
+    # Completed sessions are grouped by their Monday-Sunday week so every
+    # course card can act as a small, expandable study archive.
+    allowed_colours = {"berry", "sage", "gold"}
+    course_cards = []
+
+    for course in courses:
+        colour = (course["colour"] or "berry").strip().lower()
+        if colour not in allowed_colours:
+            colour = "berry"
+
+        planned_count = 0
+        completed_count = 0
+        completed_weeks = {}
+
+        for block in study_blocks:
+            if block["course_id"] != course["id"]:
+                continue
+
+            if block["status"] == "completed":
+                completed_count += 1
+
+                try:
+                    session_date = datetime.strptime(
+                        block["scheduled_date"],
+                        "%Y-%m-%d"
+                    ).date()
+                    week_start = session_date - timedelta(
+                        days=session_date.weekday()
+                    )
+                    week_end = week_start + timedelta(days=6)
+                    week_key = week_start.isoformat()
+                    week_label = (
+                        f"{week_start.strftime('%b %d')}–"
+                        f"{week_end.strftime('%b %d, %Y')}"
+                    )
+                except (TypeError, ValueError):
+                    week_key = "unknown"
+                    week_label = "Earlier sessions"
+
+                completed_weeks.setdefault(
+                    week_key,
+                    {"label": week_label, "sessions": []}
+                )["sessions"].append({
+                    "id": block["id"],
+                    "title": block["title"],
+                    "date": block["scheduled_date"],
+                    "start_time": block["start_time"],
+                    "end_time": block["end_time"]
+                })
+            elif block["status"] == "planned":
+                planned_count += 1
+
+        history = [
+            completed_weeks[key]
+            for key in sorted(completed_weeks, reverse=True)
+        ]
+
+        course_cards.append({
+            "id": course["id"],
+            "code": course["code"],
+            "name": course["name"],
+            "colour": colour,
+            "planned_count": planned_count,
+            "completed_count": completed_count,
+            "history": history
+        })
+
+    connection.close()
+
+    return render_template(
+        "study_plan.html",
+        name=session["first_name"],
+        settings=settings,
+        selected_days=selected_days,
+        courses=courses,
+        course_cards=course_cards,
+        assessments=assessments,
+        study_blocks=study_blocks,
+        error=request.args.get("error"),
+        saved=request.args.get("saved")
+    )
+
+
+def _owned_study_plan_course(connection, course_id, user_id):
+    if not course_id:
+        return None
+
+    return connection.execute(
+        """
+        SELECT courses.id
+        FROM courses
+        JOIN semesters
+          ON semesters.id = courses.semester_id
+        WHERE courses.id = ?
+          AND semesters.user_id = ?
+        """,
+        (course_id, user_id)
+    ).fetchone()
+
+
+@app.route("/study-plan/sessions/add", methods=["POST"])
+def add_study_block():
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    user_id = session["user_id"]
+    title = request.form.get("title", "").strip()
+    notes = request.form.get("notes", "").strip()
+    scheduled_date = request.form.get("scheduled_date", "").strip()
+    start_time = request.form.get("start_time", "").strip()
+    end_time = request.form.get("end_time", "").strip()
+    course_id = request.form.get("course_id", type=int)
+    assessment_id = request.form.get("assessment_id", type=int)
+
+    if not title or not scheduled_date or not start_time or not end_time:
+        return redirect(url_for(
+            "study_plan",
+            error="Add a title, date, start time and end time."
+        ))
+
+    if start_time >= end_time:
+        return redirect(url_for(
+            "study_plan",
+            error="The session end time must be later than its start time."
+        ))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+
+    if course_id and not _owned_study_plan_course(
+        connection, course_id, user_id
+    ):
+        connection.close()
+        return redirect(url_for("study_plan", error="That course is unavailable."))
+
+    if assessment_id:
+        assessment = connection.execute(
+            """
+            SELECT assessments.id, assessments.course_id
+            FROM assessments
+            JOIN courses ON courses.id = assessments.course_id
+            JOIN semesters ON semesters.id = courses.semester_id
+            WHERE assessments.id = ?
+              AND semesters.user_id = ?
+            """,
+            (assessment_id, user_id)
+        ).fetchone()
+
+        if assessment is None:
+            connection.close()
+            return redirect(url_for(
+                "study_plan",
+                error="That assessment is unavailable."
+            ))
+
+        if course_id and assessment["course_id"] != course_id:
+            connection.close()
+            return redirect(url_for(
+                "study_plan",
+                error="The assessment does not belong to that course."
+            ))
+
+        course_id = assessment["course_id"]
+
+    connection.execute(
+        """
+        INSERT INTO study_blocks (
+            user_id, course_id, assessment_id, title, notes,
+            scheduled_date, start_time, end_time, status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'planned')
+        """,
+        (
+            user_id, course_id, assessment_id, title, notes,
+            scheduled_date, start_time, end_time
+        )
+    )
+    connection.commit()
+    connection.close()
+
+    return redirect(url_for("study_plan", saved="Study session added."))
+
+
+@app.route("/study-plan/sessions/<int:block_id>/edit", methods=["POST"])
+def edit_study_block(block_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    user_id = session["user_id"]
+    title = request.form.get("title", "").strip()
+    notes = request.form.get("notes", "").strip()
+    scheduled_date = request.form.get("scheduled_date", "").strip()
+    start_time = request.form.get("start_time", "").strip()
+    end_time = request.form.get("end_time", "").strip()
+    course_id = request.form.get("course_id", type=int)
+    assessment_id = request.form.get("assessment_id", type=int)
+
+    if not title or not scheduled_date or not start_time or not end_time:
+        return redirect(url_for("study_plan", error="Complete every required field."))
+
+    if start_time >= end_time:
+        return redirect(url_for(
+            "study_plan",
+            error="The session end time must be later than its start time."
+        ))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+
+    block = connection.execute(
+        "SELECT id FROM study_blocks WHERE id = ? AND user_id = ?",
+        (block_id, user_id)
+    ).fetchone()
+
+    if block is None:
+        connection.close()
+        return redirect(url_for("study_plan", error="Study session not found."))
+
+    if course_id and not _owned_study_plan_course(
+        connection, course_id, user_id
+    ):
+        connection.close()
+        return redirect(url_for("study_plan", error="That course is unavailable."))
+
+    if assessment_id:
+        assessment = connection.execute(
+            """
+            SELECT assessments.id, assessments.course_id
+            FROM assessments
+            JOIN courses ON courses.id = assessments.course_id
+            JOIN semesters ON semesters.id = courses.semester_id
+            WHERE assessments.id = ? AND semesters.user_id = ?
+            """,
+            (assessment_id, user_id)
+        ).fetchone()
+        if assessment is None or (
+            course_id and assessment["course_id"] != course_id
+        ):
+            connection.close()
+            return redirect(url_for(
+                "study_plan",
+                error="Choose an assessment from the selected course."
+            ))
+        course_id = assessment["course_id"]
+
+    connection.execute(
+        """
+        UPDATE study_blocks
+        SET course_id = ?, assessment_id = ?, title = ?, notes = ?,
+            scheduled_date = ?, start_time = ?, end_time = ?
+        WHERE id = ? AND user_id = ?
+        """,
+        (
+            course_id, assessment_id, title, notes, scheduled_date,
+            start_time, end_time, block_id, user_id
+        )
+    )
+    connection.commit()
+    connection.close()
+
+    return redirect(url_for("study_plan", saved="Study session updated."))
+
+
+@app.route("/study-plan/sessions/<int:block_id>/status", methods=["POST"])
+def update_study_block_status(block_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    status = request.form.get("status", "planned")
+    if status not in {"planned", "completed", "missed"}:
+        status = "planned"
+
+    connection = sqlite3.connect("planet.db")
+    connection.execute(
+        "UPDATE study_blocks SET status = ? WHERE id = ? AND user_id = ?",
+        (status, block_id, session["user_id"])
+    )
+    connection.commit()
+    connection.close()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return {
+            "success": True,
+            "status": status
+        }
+
+    return redirect(
+        url_for("study_plan", saved="Session status updated.")
+        + "#planned-sessions"
+    )
+
+
+@app.route("/study-plan/sessions/<int:block_id>/delete", methods=["POST"])
+def delete_study_block(block_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.execute(
+        "DELETE FROM study_blocks WHERE id = ? AND user_id = ?",
+        (block_id, session["user_id"])
+    )
+    connection.commit()
+    connection.close()
+
+    return redirect(url_for("study_plan", saved="Study session deleted."))
+
+
+GRATITUDE_LABELS = {
+    "people": "♡ People",
+    "small-joys": "☕ Small joys",
+    "proud": "✦ Proud of me",
+    "moments": "☀ Little moments",
+    "faith": "🙏 Faith"
+}
+
+
+@app.route("/gratitude", methods=["GET", "POST"])
+def gratitude():
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS gratitude_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            entry_date TEXT NOT NULL,
+            label TEXT NOT NULL,
+            title TEXT NOT NULL,
+            note TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    connection.commit()
+
+    if request.method == "POST":
+        entry_date = request.form.get("entry_date", "").strip()
+        label = request.form.get("label", "small-joys").strip()
+        title = request.form.get("title", "").strip()
+        note = request.form.get("note", "").strip()
+
+        if label not in GRATITUDE_LABELS:
+            label = "small-joys"
+
+        try:
+            datetime.strptime(entry_date, "%Y-%m-%d")
+        except ValueError:
+            entry_date = ""
+
+        if not entry_date or not note:
+            connection.close()
+            return redirect(url_for(
+                "gratitude",
+                error="Choose a date and write something you are grateful for."
+            ))
+
+        if not title:
+            title = note[:48].rstrip()
+            if len(note) > 48:
+                title += "…"
+
+        connection.execute(
+            """
+            INSERT INTO gratitude_entries (
+                user_id, entry_date, label, title, note
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (session["user_id"], entry_date, label, title, note)
+        )
+        connection.commit()
+        connection.close()
+        return redirect(url_for("gratitude", saved="Added to your notebook."))
+
+    entries = connection.execute(
+        """
+        SELECT * FROM gratitude_entries
+        WHERE user_id = ?
+        ORDER BY entry_date DESC, id DESC
+        """,
+        (session["user_id"],)
+    ).fetchall()
+    connection.close()
+
+    return render_template(
+        "gratitude.html",
+        name=session["first_name"],
+        entries=entries,
+        labels=GRATITUDE_LABELS,
+        today=datetime.now().date().isoformat(),
+        saved=request.args.get("saved"),
+        error=request.args.get("error")
+    )
+
+
+@app.route("/gratitude/<int:entry_id>/edit", methods=["POST"])
+def edit_gratitude(entry_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    entry_date = request.form.get("entry_date", "").strip()
+    label = request.form.get("label", "small-joys").strip()
+    title = request.form.get("title", "").strip()
+    note = request.form.get("note", "").strip()
+
+    if label not in GRATITUDE_LABELS:
+        label = "small-joys"
+
+    try:
+        datetime.strptime(entry_date, "%Y-%m-%d")
+    except ValueError:
+        entry_date = ""
+
+    if not entry_date or not note:
+        return redirect(url_for("gratitude", error="Date and note are required."))
+
+    if not title:
+        title = note[:48].rstrip() + ("…" if len(note) > 48 else "")
+
+    connection = sqlite3.connect("planet.db")
+    connection.execute(
+        """
+        UPDATE gratitude_entries
+        SET entry_date = ?, label = ?, title = ?, note = ?
+        WHERE id = ? AND user_id = ?
+        """,
+        (entry_date, label, title, note, entry_id, session["user_id"])
+    )
+    connection.commit()
+    connection.close()
+    return redirect(url_for("gratitude", saved="Gratitude entry updated."))
+
+
+@app.route("/gratitude/<int:entry_id>/delete", methods=["POST"])
+def delete_gratitude(entry_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.execute(
+        "DELETE FROM gratitude_entries WHERE id = ? AND user_id = ?",
+        (entry_id, session["user_id"])
+    )
+    connection.commit()
+    connection.close()
+    return redirect(url_for("gratitude", saved="Gratitude entry deleted."))
+
+
+@app.context_processor
+def planet_appearance():
+    if "user_id" not in session:
+        return {}
+
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+    try:
+        preferences = connection.execute(
+            "SELECT theme, compact_dashboard FROM user_settings WHERE user_id = ?",
+            (session["user_id"],)
+        ).fetchone()
+    except sqlite3.OperationalError:
+        preferences = None
+    connection.close()
+
+    return {
+        "planet_theme": preferences["theme"] if preferences else "editorial",
+        "planet_compact": bool(preferences["compact_dashboard"]) if preferences else False
+    }
+
+
+@app.route("/settings", methods=["GET", "POST"])
+def settings():
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    user_id = session["user_id"]
+    connection = sqlite3.connect("planet.db")
+    connection.row_factory = sqlite3.Row
+
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER PRIMARY KEY,
+            reschedule_missed INTEGER NOT NULL DEFAULT 1,
+            grade_priority INTEGER NOT NULL DEFAULT 1,
+            allow_weekends INTEGER NOT NULL DEFAULT 1,
+            theme TEXT NOT NULL DEFAULT 'editorial',
+            compact_dashboard INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS quick_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'other',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS study_plan_settings (
+            user_id INTEGER PRIMARY KEY,
+            earliest_time TEXT NOT NULL DEFAULT '09:00',
+            latest_time TEXT NOT NULL DEFAULT '21:00',
+            weekly_target_hours REAL NOT NULL DEFAULT 8,
+            preferred_session_minutes INTEGER NOT NULL DEFAULT 45,
+            break_minutes INTEGER NOT NULL DEFAULT 10,
+            include_weekends INTEGER NOT NULL DEFAULT 1,
+            available_days TEXT NOT NULL DEFAULT 'monday,tuesday,wednesday,thursday,friday',
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    connection.commit()
+
+    if request.method == "POST":
+        first_name = request.form.get("first_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        earliest_time = request.form.get("earliest_time", "09:00")
+        latest_time = request.form.get("latest_time", "21:00")
+        weekly_target = request.form.get("weekly_target_hours", type=float)
+        session_minutes = request.form.get("preferred_session_minutes", type=int)
+        break_minutes = request.form.get("break_minutes", type=int)
+        theme = request.form.get("theme", "editorial")
+        available_days = request.form.getlist("available_days")
+
+        if theme not in {"editorial", "rose", "sage", "espresso", "midnight"}:
+            theme = "editorial"
+
+        if (
+            not first_name or not last_name or not email
+            or not earliest_time or not latest_time
+            or earliest_time >= latest_time
+            or weekly_target is None or weekly_target <= 0
+            or session_minutes is None or session_minutes <= 0
+            or break_minutes is None or break_minutes < 0
+            or not available_days
+        ):
+            connection.close()
+            return redirect(url_for("settings", error="Please complete every required setting."))
+
+        duplicate_email = connection.execute(
+            "SELECT id FROM users WHERE email = ? AND id != ?",
+            (email, user_id)
+        ).fetchone()
+        if duplicate_email:
+            connection.close()
+            return redirect(url_for("settings", error="That email is already connected to another account."))
+
+        allow_weekends = 1 if request.form.get("allow_weekends") else 0
+        connection.execute(
+            "UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE id = ?",
+            (first_name, last_name, email, user_id)
+        )
+        connection.execute(
+            """
+            INSERT INTO user_settings (
+                user_id, reschedule_missed, grade_priority,
+                allow_weekends, theme, compact_dashboard
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                reschedule_missed = excluded.reschedule_missed,
+                grade_priority = excluded.grade_priority,
+                allow_weekends = excluded.allow_weekends,
+                theme = excluded.theme,
+                compact_dashboard = excluded.compact_dashboard
+            """,
+            (
+                user_id,
+                1 if request.form.get("reschedule_missed") else 0,
+                1 if request.form.get("grade_priority") else 0,
+                allow_weekends,
+                theme,
+                1 if request.form.get("compact_dashboard") else 0
+            )
+        )
+        connection.execute(
+            """
+            INSERT INTO study_plan_settings (
+                user_id, earliest_time, latest_time, weekly_target_hours,
+                preferred_session_minutes, break_minutes,
+                include_weekends, available_days
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                earliest_time = excluded.earliest_time,
+                latest_time = excluded.latest_time,
+                weekly_target_hours = excluded.weekly_target_hours,
+                preferred_session_minutes = excluded.preferred_session_minutes,
+                break_minutes = excluded.break_minutes,
+                include_weekends = excluded.include_weekends,
+                available_days = excluded.available_days
+            """,
+            (
+                user_id, earliest_time, latest_time, weekly_target,
+                session_minutes, break_minutes, allow_weekends,
+                ",".join(available_days)
+            )
+        )
+        connection.commit()
+        connection.close()
+        session["first_name"] = first_name
+        return redirect(url_for("settings", saved="Settings saved."))
+
+    user = connection.execute(
+        "SELECT first_name, last_name, email FROM users WHERE id = ?",
+        (user_id,)
+    ).fetchone()
+    preferences = connection.execute(
+        "SELECT * FROM user_settings WHERE user_id = ?",
+        (user_id,)
+    ).fetchone()
+    study_preferences = connection.execute(
+        "SELECT * FROM study_plan_settings WHERE user_id = ?",
+        (user_id,)
+    ).fetchone()
+    quick_links = connection.execute(
+        """
+        SELECT * FROM quick_links
+        WHERE user_id = ?
+        ORDER BY name COLLATE NOCASE
+        """,
+        (user_id,)
+    ).fetchall()
+    connection.close()
+
+    if preferences is None:
+        preferences = {
+            "reschedule_missed": 1,
+            "grade_priority": 1,
+            "allow_weekends": 1,
+            "theme": "editorial",
+            "compact_dashboard": 0
+        }
+    if study_preferences is None:
+        study_preferences = {
+            "earliest_time": "09:00",
+            "latest_time": "21:00",
+            "weekly_target_hours": 8,
+            "preferred_session_minutes": 45,
+            "break_minutes": 10,
+            "available_days": "monday,tuesday,wednesday,thursday,friday"
+        }
+
+    return render_template(
+        "settings.html",
+        name=session["first_name"],
+        user=user,
+        preferences=preferences,
+        study_preferences=study_preferences,
+        selected_days=study_preferences["available_days"].split(","),
+        quick_links=quick_links,
+        saved=request.args.get("saved"),
+        error=request.args.get("error")
+    )
+
+
+@app.route("/settings/quick-links/add", methods=["POST"])
+def add_quick_link():
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    name = request.form.get("name", "").strip()
+    link_url = request.form.get("url", "").strip()
+    category = request.form.get("category", "other").strip()
+    allowed_categories = {"academics", "learning", "email", "library", "other"}
+
+    if category not in allowed_categories:
+        category = "other"
+
+    parsed_url = urlparse(link_url)
+    if not name or parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+        return redirect(url_for(
+            "settings",
+            error="Add a link name and a complete website address beginning with https://."
+        ))
+
+    connection = sqlite3.connect("planet.db")
+    connection.execute(
+        """
+        INSERT INTO quick_links (user_id, name, url, category)
+        VALUES (?, ?, ?, ?)
+        """,
+        (session["user_id"], name, link_url, category)
+    )
+    connection.commit()
+    connection.close()
+    return redirect(url_for("settings", saved="Quick link added.") + "#quick-links")
+
+
+@app.route("/settings/quick-links/<int:link_id>/delete", methods=["POST"])
+def delete_quick_link(link_id):
+    if "user_id" not in session:
+        return redirect(url_for("home"))
+
+    connection = sqlite3.connect("planet.db")
+    connection.execute(
+        "DELETE FROM quick_links WHERE id = ? AND user_id = ?",
+        (link_id, session["user_id"])
+    )
+    connection.commit()
+    connection.close()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return {"success": True}
+
+    return redirect(url_for("settings", saved="Quick link removed.") + "#quick-links")
 
 if __name__ == "__main__":
  app.run(debug=True, port=5001)

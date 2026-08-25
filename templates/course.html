@@ -93,6 +93,7 @@
 
             <header class="dashboard-topbar">
                 <input
+                    id="course-search"
                     type="search"
                     placeholder="Search courses, tasks, exams..."
                 >
@@ -577,5 +578,14 @@
             </section>
         </main>
     </div>
+    <script>
+        document.getElementById("course-search").addEventListener("input", (event) => {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll(".assessment-row").forEach((row) => {
+                row.hidden = query !== ""
+                    && !row.textContent.toLowerCase().includes(query);
+            });
+        });
+    </script>
 </body>
 </html>

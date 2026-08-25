@@ -96,6 +96,7 @@
         <main class="dashboard-main">
             <header class="dashboard-topbar">
                 <input
+                    id="courses-search"
                     type="search"
                     placeholder="Search courses, tasks, exams..."
                 >
@@ -499,7 +500,7 @@
                 });
             }
         }
-        function toggleCourseForm() {
+function toggleCourseForm() {
     const panel = document.getElementById(
         "course-form-panel"
     );
@@ -517,6 +518,13 @@
         });
     }
 }
+        document.getElementById("courses-search").addEventListener("input", (event) => {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll(".course-card, .semester-tab-group").forEach((item) => {
+                item.hidden = query !== ""
+                    && !item.textContent.toLowerCase().includes(query);
+            });
+        });
     </script>
 </body>
 </html>

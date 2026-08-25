@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <title>Study Plan | Planet</title>
+</head>
+
+<body class="dashboard-body">
+    <div class="dashboard-layout">
+
+        {% set active_page = "study_plan" %}
+        {% include "sidebar.html" %}
+
+        <main class="dashboard-main">
+
+            <header class="dashboard-topbar">
+                <input
+                    id="study-plan-search"
+                    type="search"
+                    placeholder="Search your study plan..."
+                >
+
+                <button
+                    type="button"
+                    id="open-settings-button"
+                >
+                    Edit Plan Settings
+                </button>
+            </header>
+
+            <section class="study-plan-content">
+
+                <div class="study-plan-heading">
+                    <div>
+                        <p class="eyebrow">YOUR STUDY PLAN</p>
+
+                        <h1>Study Plan</h1>
+
+                        <p>
+                            Plan focused study time around your
+                            courses, deadlines and availability.
+                        </p>
+                    </div>
+
+                    <div class="study-plan-heading-actions">
+                        <button
+                            type="button"
+                            class="secondary-button open-session-button"
+                        >
+                            ＋ Add study session
+                        </button>
+
+                        <button
+                            type="button"
+                            class="primary-button"
+                            id="generate-plan-button"
+                        >
+                            ✦ Generate study plan
+                        </button>
+                    </div>
+                </div>
+
+                {% if error %}
+                    <div class="study-plan-message error">
+                        {{ error }}
+                    </div>
+                {% endif %}
+
+                <section class="study-plan-summary-grid">
+
+                    <article class="study-plan-summary-card">
+                        <span>Planned this week</span>
+
+                        <strong>
+                            {% set planned_minutes = namespace(total=0) %}
+
+                            {% for block in study_blocks %}
+                                {% if block["status"] == "planned" %}
+                                    {% set planned_minutes.total =
+                                        planned_minutes.total + 1 %}
+                                {% endif %}
+                            {% endfor %}
+
+                            {{ planned_minutes.total }}
+                        </strong>
+
+                        <small>
+                            Upcoming study blocks
+                        </small>
+                    </article>
+
+                    <article class="study-plan-summary-card">
+                        <span>Completed sessions</span>
+
+                        <strong>
+                            {% set completed_blocks = namespace(total=0) %}
+
+                            {% for block in study_blocks %}
+                                {% if block["status"] == "completed" %}
+                                    {% set completed_blocks.total =
+                                        completed_blocks.total + 1 %}
+                                {% endif %}
+                            {% endfor %}
+
+                            {{ completed_blocks.total }}
+                        </strong>
+
+                        <small>
+                            Recorded study blocks
+                        </small>
+                    </article>
+
+                    <article class="study-plan-summary-card">
+                        <span>Assessments to plan</span>
+
+                        <strong>{{ assessments|length }}</strong>
+
+                        <small>
+                            Upcoming ungraded assessments
+                        </small>
+                    </article>
+
+                    <article class="study-plan-summary-card">
+                        <span>Weekly target</span>
+
+                        <strong>
+                            {{ settings["weekly_target_hours"] }}h
+                        </strong>
+
+                        <small>
+                            Your preferred study time
+                        </small>
+                    </article>
+
+                </section>
+
+                {% if course_cards %}
+                    <section class="study-course-section">
+                        <div class="study-plan-section-heading">
+                            <div>
+                                <p class="eyebrow">YOUR COURSES</p>
+                                <h2>Plan by course</h2>
+                            </div>
+                        </div>
+
+                        <div class="study-course-grid">
+                            {% for course in course_cards %}
+                                <article class="study-course-card course-colour-{{ course.colour }}">
+                                    <button
+                                        type="button"
+                                        class="study-course-card-toggle"
+                                        data-course-toggle
+                                        aria-expanded="false"
+                                        aria-controls="course-history-{{ course.id }}"
+                                    >
+                                        <span class="study-course-code">{{ course.code }}</span>
+                                        <h3>{{ course.name }}</h3>
+                                        <p>
+                                            {{ course.planned_count }} planned ·
+                                            {{ course.completed_count }} completed
+                                        </p>
+                                        <span class="study-course-history-label">View history ↓</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        class="text-button open-session-button"
+                                        data-course-id="{{ course.id }}"
+                                    >
+                                        ＋ Add session
+                                    </button>
+
+                                    <div
+                                        id="course-history-{{ course.id }}"
+                                        class="study-course-history"
+                                        hidden
+                                    >
+                                        {% if course.history %}
+                                            {% for week in course.history %}
+                                                <section class="study-course-history-week">
+                                                    <h4>{{ week.label }}</h4>
+                                                    {% for session in week.sessions %}
+                                                        <div class="study-course-history-row">
+                                                            <strong>{{ session.title }}</strong>
+                                                            <span>
+                                                                {{ session.date }} ·
+                                                                {{ session.start_time }}–{{ session.end_time }}
+                                                            </span>
+                                                        </div>
+                                                    {% endfor %}
+                                                </section>
+                                            {% endfor %}
+                                        {% else %}
+                                            <p class="study-course-history-empty">
+                                                No completed sessions yet.
+                                            </p>
+                                        {% endif %}
+                                    </div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                <section class="study-plan-main-grid">
+
+                    <article
+                        id="planned-sessions"
+                        class="study-plan-card weekly-plan-card"
+                    >
+
+                        <div class="study-plan-section-heading">
+                            <div>
+                                <p class="eyebrow">THIS WEEK</p>
+                                <h2>Your planned sessions</h2>
+                                {% if saved %}
+                                    <div class="study-plan-session-message" role="status">
+                                        {{ saved }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <span class="study-plan-count">
+                                {{ study_blocks|length }}
+                                {% if study_blocks|length == 1 %}
+                                    session
+                                {% else %}
+                                    sessions
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        {% if study_blocks %}
+
+                            <div class="study-block-list">
+
+                                {% for block in study_blocks %}
+                                    <article class="study-block-row">
+
+                                        <div class="study-block-date">
+                                            <span>
+                                                {{ block["scheduled_date"] }}
+                                            </span>
+
+                                            <strong>
+                                                {{ block["start_time"] }}
+                                            </strong>
+                                        </div>
+
+                                        <span
+                                            class="
+                                                study-block-colour
+                                                {% if block['status'] == 'completed' %}
+                                                    completed
+                                                {% elif block['status'] == 'missed' %}
+                                                    missed
+                                                {% else %}
+                                                    planned
+                                                {% endif %}
+                                            "
+                                        ></span>
+
+                                        <div class="study-block-details">
+                                            <strong>
+                                                {{ block["title"] }}
+                                            </strong>
+
+                                            <p>
+                                                {% if block["course_code"] %}
+                                                    {{ block["course_code"] }}
+                                                    ·
+                                                {% endif %}
+
+                                                {{ block["start_time"] }}
+                                                –
+                                                {{ block["end_time"] }}
+                                            </p>
+
+                                            {% if block["assessment_name"] %}
+                                                <small>
+                                                    For:
+                                                    {{ block["assessment_name"] }}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+
+                                        <span
+                                            class="
+                                                study-block-status
+                                                {{ block['status'] }}
+                                            "
+                                        >
+                                            {{ block["status"]|capitalize }}
+                                        </span>
+
+                                        <div class="study-block-actions">
+                                            <form
+                                                method="POST"
+                                                class="study-status-form"
+                                                action="{{ url_for('update_study_block_status', block_id=block['id']) }}"
+                                            >
+                                                {% if block["status"] == "completed" %}
+                                                    <input type="hidden" name="status" value="planned">
+                                                    <button type="submit">Mark planned</button>
+                                                {% else %}
+                                                    <input type="hidden" name="status" value="completed">
+                                                    <button type="submit">Mark complete</button>
+                                                {% endif %}
+                                            </form>
+
+                                            <button
+                                                type="button"
+                                                class="text-button edit-session-button"
+                                                data-action="{{ url_for('edit_study_block', block_id=block['id']) }}"
+                                                data-title="{{ block['title']|e }}"
+                                                data-notes="{{ (block['notes'] or '')|e }}"
+                                                data-date="{{ block['scheduled_date'] }}"
+                                                data-start="{{ block['start_time'] }}"
+                                                data-end="{{ block['end_time'] }}"
+                                                data-course-id="{{ block['course_id'] or '' }}"
+                                                data-assessment-id="{{ block['assessment_id'] or '' }}"
+                                            >
+                                                Edit
+                                            </button>
+
+                                            <form
+                                                method="POST"
+                                                action="{{ url_for('delete_study_block', block_id=block['id']) }}"
+                                                onsubmit="return confirm('Delete this study session?');"
+                                            >
+                                                <button type="submit" class="text-button danger-text-button">
+                                                    Delete
+                                                </button>
+                                            </form>
+                                        </div>
+
+                                    </article>
+                                {% endfor %}
+
+                            </div>
+
+                        {% else %}
+
+                            <div class="study-plan-empty">
+                                <span>✦</span>
+
+                                <h3>No study sessions planned yet.</h3>
+
+                                <p>
+                                    Choose your availability and upcoming
+                                    assessments, then let Planet build your
+                                    first study plan.
+                                </p>
+
+                                <div class="study-plan-empty-actions">
+                                    <button type="button" class="secondary-button open-session-button">
+                                        Add my own session
+                                    </button>
+                                    <button type="button" class="primary-button" id="empty-generate-button">
+                                        Generate my plan
+                                    </button>
+                                </div>
+                            </div>
+
+                        {% endif %}
+
+                    </article>
+
+                    <aside class="study-plan-card assessments-panel">
+
+                        <div class="study-plan-section-heading">
+                            <div>
+                                <p class="eyebrow">TO PLAN</p>
+                                <h2>Upcoming assessments</h2>
+                            </div>
+                        </div>
+
+                        {% if assessments %}
+
+                            <div class="assessment-plan-list">
+
+                                {% for assessment in assessments %}
+                                    <article class="assessment-plan-item">
+
+                                        <div class="assessment-plan-top">
+                                            <div>
+                                                <strong>
+                                                    {{ assessment["name"] }}
+                                                </strong>
+
+                                                <span>
+                                                    {{ assessment["course_code"] }}
+                                                    ·
+                                                    {{ assessment["course_name"] }}
+                                                </span>
+                                            </div>
+
+                                            {% if assessment["weight"] %}
+                                                <b>
+                                                    {{ assessment["weight"] }}%
+                                                </b>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="assessment-plan-meta">
+                                            <span>
+                                                Due
+                                                {{ assessment["due_date"] }}
+                                            </span>
+
+                                            <label class="study-assessment-check">
+                                                <input
+                                                    type="checkbox"
+                                                    name="assessment_ids"
+                                                    value="{{ assessment['id'] }}"
+                                                    form="plan-selection-form"
+                                                    checked
+                                                >
+
+                                                Include
+                                            </label>
+                                        </div>
+
+                                    </article>
+                                {% endfor %}
+
+                            </div>
+
+                        {% else %}
+
+                            <div class="assessment-plan-empty">
+                                <p>
+                                    No upcoming ungraded assessments
+                                    need planning.
+                                </p>
+                            </div>
+
+                        {% endif %}
+
+                    </aside>
+
+                </section>
+
+                <form
+                    id="plan-selection-form"
+                    class="hidden-plan-form"
+                ></form>
+
+            </section>
+
+        </main>
+    </div>
+
+    <div class="study-settings-overlay" id="session-overlay" hidden>
+        <section
+            class="study-settings-modal session-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="session-modal-title"
+        >
+            <button
+                type="button"
+                class="study-settings-close"
+                id="close-session-button"
+                aria-label="Close study session form"
+            >×</button>
+
+            <p class="eyebrow">STUDY SESSION</p>
+            <h2 id="session-modal-title">Add time to your plan</h2>
+            <p class="study-settings-description">
+                Pick a course, date and time. You can change it later.
+            </p>
+
+            <form
+                method="POST"
+                action="{{ url_for('add_study_block') }}"
+                class="study-settings-form"
+                id="session-form"
+            >
+                <label>
+                    Session name
+                    <input type="text" name="title" id="session-title" placeholder="What will you study?" required>
+                </label>
+
+                <div class="study-settings-time-grid">
+                    <label>
+                        Course
+                        <select name="course_id" id="session-course">
+                            <option value="">No course</option>
+                            {% for course in courses %}
+                                <option value="{{ course['id'] }}">
+                                    {{ course['code'] }} · {{ course['name'] }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        Assessment (optional)
+                        <select name="assessment_id" id="session-assessment">
+                            <option value="">No assessment</option>
+                            {% for assessment in assessments %}
+                                <option
+                                    value="{{ assessment['id'] }}"
+                                    data-course-id="{{ assessment['course_id'] }}"
+                                >
+                                    {{ assessment['name'] }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+
+                <label>
+                    Date
+                    <input type="date" name="scheduled_date" id="session-date" required>
+                </label>
+
+                <div class="study-settings-time-grid">
+                    <label>
+                        Starts
+                        <input type="time" name="start_time" id="session-start" required>
+                    </label>
+                    <label>
+                        Ends
+                        <input type="time" name="end_time" id="session-end" required>
+                    </label>
+                </div>
+
+                <label>
+                    Notes (optional)
+                    <textarea name="notes" id="session-notes" rows="3" placeholder="Topics, chapters or reminders"></textarea>
+                </label>
+
+                <button type="submit" class="primary-button study-settings-submit" id="session-submit">
+                    Add study session
+                </button>
+            </form>
+        </section>
+    </div>
+
+    <div
+        class="study-settings-overlay"
+        id="study-settings-overlay"
+        hidden
+    >
+        <section
+            class="study-settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="study-settings-title"
+        >
+            <button
+                type="button"
+                class="study-settings-close"
+                id="close-settings-button"
+                aria-label="Close study settings"
+            >
+                ×
+            </button>
+
+            <p class="eyebrow">PLAN SETTINGS</p>
+
+            <h2 id="study-settings-title">
+                When do you want to study?
+            </h2>
+
+            <p class="study-settings-description">
+                Planet will only schedule sessions during the
+                times you choose.
+            </p>
+
+            <form method="POST" class="study-settings-form">
+
+                <div class="study-settings-time-grid">
+
+                    <label>
+                        Earliest study time
+
+                        <input
+                            type="time"
+                            name="earliest_time"
+                            value="{{ settings['earliest_time'] }}"
+                            required
+                        >
+                    </label>
+
+                    <label>
+                        Latest study time
+
+                        <input
+                            type="time"
+                            name="latest_time"
+                            value="{{ settings['latest_time'] }}"
+                            required
+                        >
+                    </label>
+
+                </div>
+
+                <div class="study-settings-time-grid">
+
+                    <label>
+                        Weekly study target
+
+                        <div class="study-settings-input-unit">
+                            <input
+                                type="number"
+                                name="weekly_target_hours"
+                                value="{{ settings['weekly_target_hours'] }}"
+                                min="0.5"
+                                max="100"
+                                step="0.5"
+                                required
+                            >
+
+                            <span>hours</span>
+                        </div>
+                    </label>
+
+                    <label>
+                        Preferred session length
+
+                        <div class="study-settings-input-unit">
+                            <input
+                                type="number"
+                                name="preferred_session_minutes"
+                                value="{{ settings['preferred_session_minutes'] }}"
+                                min="10"
+                                max="240"
+                                step="5"
+                                required
+                            >
+
+                            <span>minutes</span>
+                        </div>
+                    </label>
+
+                </div>
+
+                <label>
+                    Break between sessions
+
+                    <div class="study-settings-input-unit">
+                        <input
+                            type="number"
+                            name="break_minutes"
+                            value="{{ settings['break_minutes'] }}"
+                            min="0"
+                            max="120"
+                            step="5"
+                            required
+                        >
+
+                        <span>minutes</span>
+                    </div>
+                </label>
+
+                <fieldset class="study-days-fieldset">
+                    <legend>Available study days</legend>
+
+                    <div class="study-day-options">
+
+                        {% set day_options = [
+                            ("monday", "Mon"),
+                            ("tuesday", "Tue"),
+                            ("wednesday", "Wed"),
+                            ("thursday", "Thu"),
+                            ("friday", "Fri"),
+                            ("saturday", "Sat"),
+                            ("sunday", "Sun")
+                        ] %}
+
+                        {% for day_value, day_label in day_options %}
+                            <label class="study-day-option">
+                                <input
+                                    type="checkbox"
+                                    name="available_days"
+                                    value="{{ day_value }}"
+                                    {% if day_value in selected_days %}
+                                        checked
+                                    {% endif %}
+                                >
+
+                                <span>{{ day_label }}</span>
+                            </label>
+                        {% endfor %}
+
+                    </div>
+                </fieldset>
+
+                <label class="study-weekend-option">
+                    <input
+                        type="checkbox"
+                        name="include_weekends"
+                        {% if settings["include_weekends"] %}
+                            checked
+                        {% endif %}
+                    >
+
+                    <span>
+                        Allow Planet to schedule study sessions
+                        on weekends
+                    </span>
+                </label>
+
+                <button
+                    type="submit"
+                    class="primary-button study-settings-submit"
+                >
+                    Save study preferences
+                </button>
+
+            </form>
+        </section>
+    </div>
+    <script>
+        const sessionOverlay = document.getElementById("session-overlay");
+        const sessionForm = document.getElementById("session-form");
+        const sessionModalTitle = document.getElementById("session-modal-title");
+        const sessionSubmit = document.getElementById("session-submit");
+        const addSessionAction = "{{ url_for('add_study_block') }}";
+
+        function openOverlay(overlay) {
+            overlay.hidden = false;
+            document.body.classList.add("modal-open");
+        }
+
+        function closeOverlay(overlay) {
+            overlay.hidden = true;
+            document.body.classList.remove("modal-open");
+        }
+
+        function prepareNewSession(courseId = "") {
+            sessionForm.reset();
+            sessionForm.action = addSessionAction;
+            sessionModalTitle.textContent = "Add time to your plan";
+            sessionSubmit.textContent = "Add study session";
+            document.getElementById("session-course").value = courseId;
+            openOverlay(sessionOverlay);
+            document.getElementById("session-title").focus();
+        }
+
+        document.querySelectorAll(".open-session-button").forEach((button) => {
+            button.addEventListener("click", () => {
+                prepareNewSession(button.dataset.courseId || "");
+            });
+        });
+
+        document.querySelectorAll(".edit-session-button").forEach((button) => {
+            button.addEventListener("click", () => {
+                sessionForm.reset();
+                sessionForm.action = button.dataset.action;
+                sessionModalTitle.textContent = "Edit study session";
+                sessionSubmit.textContent = "Save changes";
+                document.getElementById("session-title").value = button.dataset.title;
+                document.getElementById("session-notes").value = button.dataset.notes;
+                document.getElementById("session-date").value = button.dataset.date;
+                document.getElementById("session-start").value = button.dataset.start;
+                document.getElementById("session-end").value = button.dataset.end;
+                document.getElementById("session-course").value = button.dataset.courseId;
+                document.getElementById("session-assessment").value = button.dataset.assessmentId;
+                openOverlay(sessionOverlay);
+                document.getElementById("session-title").focus();
+            });
+        });
+
+        document.getElementById("close-session-button").addEventListener("click", () => {
+            closeOverlay(sessionOverlay);
+        });
+
+        sessionOverlay.addEventListener("click", (event) => {
+            if (event.target === sessionOverlay) closeOverlay(sessionOverlay);
+        });
+
+        const settingsOverlay = document.getElementById("study-settings-overlay");
+        document.getElementById("open-settings-button").addEventListener("click", () => {
+            openOverlay(settingsOverlay);
+        });
+        document.getElementById("close-settings-button").addEventListener("click", () => {
+            closeOverlay(settingsOverlay);
+        });
+        settingsOverlay.addEventListener("click", (event) => {
+            if (event.target === settingsOverlay) closeOverlay(settingsOverlay);
+        });
+
+        document.querySelectorAll("[data-course-toggle]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const history = document.getElementById(button.getAttribute("aria-controls"));
+                const opening = history.hidden;
+                history.hidden = !opening;
+                button.setAttribute("aria-expanded", String(opening));
+            });
+        });
+
+        document.querySelectorAll(".study-status-form").forEach((form) => {
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                const button = form.querySelector('button[type="submit"]');
+                const statusInput = form.querySelector('input[name="status"]');
+                const row = form.closest(".study-block-row");
+                const badge = row.querySelector(".study-block-status");
+                const colour = row.querySelector(".study-block-colour");
+                const requestedStatus = statusInput.value;
+
+                button.disabled = true;
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: "POST",
+                        body: new FormData(form),
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest",
+                            "Accept": "application/json"
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("The status could not be updated.");
+                    }
+
+                    const result = await response.json();
+                    const newStatus = result.status;
+
+                    badge.classList.remove("planned", "completed", "missed");
+                    badge.classList.add(newStatus);
+                    badge.textContent = newStatus.charAt(0).toUpperCase()
+                        + newStatus.slice(1);
+
+                    colour.classList.remove("planned", "completed", "missed");
+                    colour.classList.add(newStatus);
+
+                    if (newStatus === "completed") {
+                        statusInput.value = "planned";
+                        button.textContent = "Mark planned";
+                    } else {
+                        statusInput.value = "completed";
+                        button.textContent = "Mark complete";
+                    }
+
+                    const summaryValues = document.querySelectorAll(
+                        ".study-plan-summary-card strong"
+                    );
+                    if (summaryValues.length >= 2) {
+                        summaryValues[0].textContent = document.querySelectorAll(
+                            ".study-block-status.planned"
+                        ).length;
+                        summaryValues[1].textContent = document.querySelectorAll(
+                            ".study-block-status.completed"
+                        ).length;
+                    }
+                } catch (error) {
+                    window.alert(error.message);
+                } finally {
+                    button.disabled = false;
+                }
+            });
+        });
+
+        document.getElementById("study-plan-search").addEventListener("input", (event) => {
+            const query = event.target.value.trim().toLowerCase();
+            document.querySelectorAll(
+                ".study-course-card, .study-block-row, .assessment-plan-item"
+            ).forEach((item) => {
+                item.hidden = query !== ""
+                    && !item.textContent.toLowerCase().includes(query);
+            });
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            closeOverlay(sessionOverlay);
+            closeOverlay(settingsOverlay);
+        });
+    </script>
+</body>
+</html>

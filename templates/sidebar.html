@@ -22,10 +22,13 @@
             Courses &amp; Grades
         </a>
 
-        <a href="#">
-            <span>✦</span>
-            Study Plan
-        </a>
+        <a
+    href="{{ url_for('study_plan') }}"
+    class="{% if active_page == 'study_plan' %}active{% endif %}"
+>
+    <span>✦</span>
+    Study Plan
+</a>
 
         <a
     class="{% if active_page == 'calendar' %}active{% endif %}"
@@ -50,7 +53,10 @@
             Goals
         </a>
 
-        <a href="#">
+        <a
+            href="{{ url_for('gratitude') }}"
+            class="{% if active_page == 'gratitude' %}active{% endif %}"
+        >
             <span>♡</span>
             Gratitude
         </a>
@@ -63,7 +69,10 @@
     Focus
 </a>
 
-        <a href="#">
+        <a
+            href="{{ url_for('settings') }}"
+            class="{% if active_page == 'settings' %}active{% endif %}"
+        >
             <span>⚙</span>
             Settings
         </a>
@@ -83,3 +92,17 @@
         </div>
     </div>
 </aside>
+
+<script>
+    (function () {
+        const savedTheme = localStorage.getItem("planetTheme");
+        const savedCompact = localStorage.getItem("planetCompact");
+        const theme = savedTheme || "{{ planet_theme|default('editorial') }}";
+        const compact = savedCompact !== null
+            ? savedCompact
+            : "{{ 'true' if planet_compact|default(false) else 'false' }}";
+
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.compact = compact;
+    })();
+</script>
