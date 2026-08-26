@@ -12,7 +12,33 @@
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
-    <style>.planet-search-hidden { display: none !important; }</style>
+    <style>
+        .planet-search-hidden { display: none !important; }
+
+        .study-plan-generation-note {
+            flex-basis: 100%;
+            max-width: 470px;
+            margin-left: auto;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+            text-align: right;
+        }
+
+        .assessments-panel .study-plan-section-heading p:last-child {
+            max-width: 390px;
+            margin: 10px 0 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        @media (max-width: 700px) {
+            .study-plan-generation-note {
+                margin-left: 0;
+                text-align: left;
+            }
+        }
+    </style>
 
     <title>Study Plan | Planet</title>
 </head>
@@ -49,8 +75,10 @@
                         <h1>Study Plan</h1>
 
                         <p>
-                            Plan focused study time around your
-                            courses, deadlines and availability.
+                            Planet builds a weekly study schedule around your
+                            availability, existing calendar events and upcoming
+                            assessments. Deadlines that are closer or worth more
+                            receive more study time.
                         </p>
                     </div>
 
@@ -68,8 +96,17 @@
                             id="generate-plan-button"
                             form="plan-selection-form"
                         >
-                            ✦ Generate study plan
+                            {% if has_generated_plan %}
+                                ✦ Regenerate my study plan
+                            {% else %}
+                                ✦ Generate my study plan
+                            {% endif %}
                         </button>
+
+                        <small class="study-plan-generation-note">
+                            Uses your study preferences, calendar conflicts,
+                            due dates and assessment weights.
+                        </small>
                     </div>
                 </div>
 
@@ -391,9 +428,9 @@
                                 <h3>No study sessions planned yet.</h3>
 
                                 <p>
-                                    Choose your availability and upcoming
-                                    assessments, then let Planet build your
-                                    first study plan.
+                                    Choose your available days and study hours,
+                                    select upcoming assessments, then let Planet
+                                    build your week.
                                 </p>
 
                                 <div class="study-plan-empty-actions">
@@ -401,7 +438,11 @@
                                         Add my own session
                                     </button>
                                     <button type="submit" class="primary-button" id="empty-generate-button" form="plan-selection-form">
-                                        Generate my plan
+                                        {% if has_generated_plan %}
+                                            ✦ Regenerate my study plan
+                                        {% else %}
+                                            ✦ Generate my study plan
+                                        {% endif %}
                                     </button>
                                 </div>
                             </div>
@@ -415,7 +456,11 @@
                         <div class="study-plan-section-heading">
                             <div>
                                 <p class="eyebrow">TO PLAN</p>
-                                <h2>Upcoming assessments</h2>
+                                <h2>Choose what to plan for</h2>
+                                <p>
+                                    Select the assessments Planet should
+                                    prioritize in your generated schedule.
+                                </p>
                             </div>
                         </div>
 
@@ -490,7 +535,13 @@
                     class="hidden-plan-form"
                     method="POST"
                     action="{{ url_for('generate_study_plan') }}"
-                ></form>
+                >
+                    <input
+                        type="hidden"
+                        name="replace_generated"
+                        value="{% if has_generated_plan %}1{% else %}0{% endif %}"
+                    >
+                </form>
 
             </section>
 
@@ -767,12 +818,29 @@
         const sessionSubmit = document.getElementById("session-submit");
         const addSessionAction = "{{ url_for('add_study_block') }}";
 
-        document.getElementById("plan-selection-form").addEventListener("submit", () => {
+        document.getElementById("plan-selection-form").addEventListener("submit", (event) => {
+            const replaceGenerated = event.currentTarget.querySelector(
+                'input[name="replace_generated"]'
+            ).value === "1";
+
+            if (
+                replaceGenerated
+                && !window.confirm(
+                    "Replace your automatically generated sessions for this week? "
+                    + "Manual and completed sessions will be kept."
+                )
+            ) {
+                event.preventDefault();
+                return;
+            }
+
             document.querySelectorAll(
                 '#generate-plan-button, #empty-generate-button'
             ).forEach((button) => {
                 button.disabled = true;
-                button.textContent = "✦ Building your plan...";
+                button.textContent = replaceGenerated
+                    ? "✦ Rebuilding your plan..."
+                    : "✦ Building your plan...";
             });
         });
 
@@ -962,23 +1030,7 @@
                         ).length;
                     }
 
-                    if (rows.length === 0) {
-                        document.querySelector(".study-block-list").innerHTML = `
-                            <div class="study-plan-empty">
-                                <span>✦</span>
-                                <h3>No study sessions planned yet.</h3>
-                                <p>Choose your availability and let Planet build your next plan.</p>
-                                <div class="study-plan-empty-actions">
-                                    <button type="button" class="secondary-button open-session-button" onclick="prepareNewSession()">
-                                        Add my own session
-                                    </button>
-                                    <button type="submit" class="primary-button" form="plan-selection-form">
-                                        Generate my plan
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    }
+                    if (rows.length === 0) window.location.reload();
                 } catch (error) {
                     window.alert(error.message);
                     button.disabled = false;
@@ -1102,26 +1154,7 @@
 
                 closeSelectionMode();
 
-                if (rows.length === 0) {
-                    standardSessionControls.innerHTML = `
-                        <span class="study-plan-count">0 sessions</span>
-                    `;
-                    document.querySelector(".study-block-list").innerHTML = `
-                        <div class="study-plan-empty">
-                            <span>✦</span>
-                            <h3>No study sessions planned yet.</h3>
-                            <p>Choose your availability and let Planet build your next plan.</p>
-                            <div class="study-plan-empty-actions">
-                                <button type="button" class="secondary-button" onclick="prepareNewSession()">
-                                    Add my own session
-                                </button>
-                                <button type="submit" class="primary-button" form="plan-selection-form">
-                                    Generate my plan
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }
+                if (rows.length === 0) window.location.reload();
             } catch (error) {
                 window.alert(error.message);
                 deleteSelectedButton.disabled = false;
