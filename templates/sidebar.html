@@ -1,3 +1,4 @@
+
 <aside class="sidebar">
     <div class="sidebar-logo">
         <span class="logo-icon">P</span>
@@ -99,5 +100,27 @@
         localStorage.removeItem("planetCompact");
         document.documentElement.dataset.theme = "{{ planet_theme|default('editorial') }}";
         document.documentElement.dataset.compact = "{{ 'true' if planet_compact|default(false) else 'false' }}";
+
+        /* Keep date-sensitive features aligned with the user's location. */
+        const detectedTimezone = Intl.DateTimeFormat()
+            .resolvedOptions()
+            .timeZone;
+
+        if (detectedTimezone) {
+            fetch("{{ url_for('update_timezone') }}", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({timezone: detectedTimezone})
+            })
+                .then(response => response.ok ? response.json() : null)
+                .then(result => {
+                    if (result && result.changed) {
+                        window.location.reload();
+                    }
+                })
+                .catch(() => {
+                    /* The saved timezone remains available if detection fails. */
+                });
+        }
     })();
 </script>
