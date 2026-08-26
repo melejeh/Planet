@@ -20,6 +20,32 @@ Planet brings courses, assessments, grades, study sessions, tasks, goals, calend
 - **Responsive interface** — Use Planet across desktop, tablet, and mobile layouts.
 - **Multi-user data isolation** — Every query is scoped to the authenticated user so accounts cannot access one another's information.
 
+## Product Tour
+
+### Dashboard
+
+See the active semester, upcoming assessments, projected grades, today's schedule, tasks, deadlines, and quick links in one overview.
+
+![Planet dashboard](screenshots/dashboard.png)
+
+### Courses and Grades
+
+Organize courses by semester, review schedules and grades, and import timetable or course-outline information.
+
+![Planet courses and grades](screenshots/courses.png)
+
+### Priority-Aware Study Plan
+
+Generate a weekly plan around availability and calendar conflicts. Planet prioritizes assessments by due date and weight, assigns course-coloured sessions, and keeps the plan synchronized with the Calendar and Dashboard.
+
+![Planet priority-aware study plan](screenshots/study-plan.png)
+
+### Timetable Import and Review
+
+Upload a timetable screenshot, review the courses and meeting times Planet detects, correct anything uncertain, and choose exactly what to save.
+
+![Planet timetable import review](screenshots/timetable-import.png)
+
 ## Why I Built It
 
 Student information is often scattered across course outlines, timetable systems, calendars, task lists, and grade calculators. Planet explores how those sources can become one connected planning workflow: import the semester, verify the data, and use it to decide what to work on next.
@@ -146,4 +172,3 @@ Planet is a beta project. Testers should avoid entering sensitive personal infor
 ## Author
 
 Built by [Mel Ejeh](https://github.com/melejeh), a Software Engineering student at Western University.
-
