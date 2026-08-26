@@ -337,6 +337,60 @@ def dashboard():
 
         today_events.append(event)
 
+    # Study Plan sessions live in study_blocks rather than events. Include
+    # them in today's dashboard schedule without copying or duplicating them.
+    study_blocks_table_exists = connection.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'study_blocks'
+        """
+    ).fetchone()
+
+    if study_blocks_table_exists:
+        today_study_blocks = connection.execute(
+            """
+            SELECT
+                study_blocks.id,
+                study_blocks.title,
+                study_blocks.notes,
+                study_blocks.start_time,
+                study_blocks.end_time,
+                study_blocks.status,
+                courses.code AS course_code
+            FROM study_blocks
+            LEFT JOIN courses
+              ON courses.id = study_blocks.course_id
+            WHERE study_blocks.user_id = ?
+              AND study_blocks.scheduled_date = ?
+              AND study_blocks.status IN ('planned', 'completed')
+            ORDER BY study_blocks.start_time
+            """,
+            (session["user_id"], today.isoformat())
+        ).fetchall()
+
+        for row in today_study_blocks:
+            block = dict(row)
+            start = datetime.strptime(block["start_time"], "%H:%M")
+            end = datetime.strptime(block["end_time"], "%H:%M")
+            block.update({
+                "category": "study",
+                "category_label": (
+                    f"Study Plan · {block['course_code']}"
+                    if block["course_code"]
+                    else "Study Plan"
+                ),
+                "display_time": start.strftime("%-I:%M %p"),
+                "duration_minutes": max(
+                    int((end - start).total_seconds() // 60),
+                    0
+                ),
+                "source_type": "study_plan"
+            })
+            today_events.append(block)
+
+    today_events.sort(key=lambda item: item["start_time"])
+
     # Retrieve course and assessment information.
     if active_semester is not None:
         courses = connection.execute(
@@ -1805,6 +1859,33 @@ def calendar():
         )
     ).fetchall()
 
+    study_blocks = connection.execute(
+        """
+        SELECT
+            study_blocks.id,
+            study_blocks.title,
+            study_blocks.notes,
+            study_blocks.scheduled_date AS event_date,
+            study_blocks.start_time,
+            study_blocks.end_time,
+            study_blocks.status,
+            courses.code AS course_code,
+            courses.colour AS course_colour
+        FROM study_blocks
+        LEFT JOIN courses
+          ON courses.id = study_blocks.course_id
+        WHERE study_blocks.user_id = ?
+          AND study_blocks.scheduled_date BETWEEN ? AND ?
+          AND study_blocks.status IN ('planned', 'completed')
+        ORDER BY study_blocks.scheduled_date, study_blocks.start_time
+        """,
+        (
+            session["user_id"],
+            week_start.isoformat(),
+            week_end.isoformat()
+        )
+    ).fetchall()
+
     days = []
 
     for day_offset in range(7):
@@ -1851,6 +1932,42 @@ def calendar():
             ).strftime("%-I:%M %p")
 
             day_events.append(event_data)
+
+        for block in study_blocks:
+            if block["event_date"] != day_date.isoformat():
+                continue
+
+            block_data = dict(block)
+            start_hour, start_minute = map(
+                int,
+                block["start_time"].split(":")
+            )
+            end_hour, end_minute = map(
+                int,
+                block["end_time"].split(":")
+            )
+            start_total = start_hour * 60 + start_minute
+            end_total = end_hour * 60 + end_minute
+            allowed_colours = {"berry", "sage", "gold"}
+            course_colour = (
+                block["course_colour"] or "berry"
+            ).strip().lower()
+            if course_colour not in allowed_colours:
+                course_colour = "berry"
+
+            block_data.update({
+                "source_type": "study_plan",
+                "category": "study",
+                "course_colour": course_colour,
+                "top": max(0, (start_total - 6 * 60) / 60 * 42),
+                "height": max(26, (end_total - start_total) / 60 * 42),
+                "display_time": datetime.strptime(
+                    block["start_time"], "%H:%M"
+                ).strftime("%-I:%M %p")
+            })
+            day_events.append(block_data)
+
+        day_events.sort(key=lambda item: item["start_time"])
 
         days.append({
             "date": day_date,
@@ -3912,6 +4029,7 @@ def study_plan():
             start_time TEXT NOT NULL,
             end_time TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'planned',
+            source TEXT NOT NULL DEFAULT 'manual',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (course_id) REFERENCES courses(id),
@@ -3928,6 +4046,24 @@ def study_plan():
     }
     if "notes" not in study_block_columns:
         connection.execute("ALTER TABLE study_blocks ADD COLUMN notes TEXT")
+    if "source" not in study_block_columns:
+        connection.execute(
+            "ALTER TABLE study_blocks "
+            "ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'"
+        )
+        # Preserve regenerate support for plans created before the source
+        # column existed. These exact notes are only written by Planet.
+        connection.execute(
+            """
+            UPDATE study_blocks
+            SET source = 'generated'
+            WHERE source = 'manual'
+              AND (
+                    notes LIKE 'Priority session for %.%'
+                    OR notes LIKE 'Focused study time for %.%'
+                  )
+            """
+        )
     connection.commit()
 
     if request.method == "POST":
@@ -4143,6 +4279,21 @@ def study_plan():
         (user_id,)
     ).fetchall()
 
+    today = planet_now().date()
+    window_end = today + timedelta(days=6)
+    has_generated_plan = connection.execute(
+        """
+        SELECT 1
+        FROM study_blocks
+        WHERE user_id = ?
+          AND source = 'generated'
+          AND status = 'planned'
+          AND scheduled_date BETWEEN ? AND ?
+        LIMIT 1
+        """,
+        (user_id, today.isoformat(), window_end.isoformat())
+    ).fetchone() is not None
+
     study_block_groups = []
     groups_by_date = {}
 
@@ -4261,6 +4412,7 @@ def study_plan():
         assessments=assessments,
         study_blocks=study_blocks,
         study_block_groups=study_block_groups,
+        has_generated_plan=has_generated_plan,
         error=request.args.get("error"),
         saved=request.args.get("saved")
     )
@@ -4346,6 +4498,19 @@ def generate_study_plan():
 
     today = planet_now().date()
     window_end = today + timedelta(days=6)
+    replace_generated = request.form.get("replace_generated") == "1"
+
+    if replace_generated:
+        connection.execute(
+            """
+            DELETE FROM study_blocks
+            WHERE user_id = ?
+              AND source = 'generated'
+              AND status = 'planned'
+              AND scheduled_date BETWEEN ? AND ?
+            """,
+            (user_id, today.isoformat(), window_end.isoformat())
+        )
     selected_assessment_ids = request.form.getlist("assessment_ids", type=int)
     assessments = []
 
@@ -4538,8 +4703,8 @@ def generate_study_plan():
                 """
                 INSERT INTO study_blocks (
                     user_id, course_id, assessment_id, title, notes,
-                    scheduled_date, start_time, end_time, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'planned')
+                    scheduled_date, start_time, end_time, status, source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'planned', 'generated')
                 """,
                 (
                     user_id,

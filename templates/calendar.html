@@ -96,6 +96,77 @@
             box-shadow: 0 1px 4px rgba(36, 34, 29, 0.16);
         }
 
+        .demo-calendar-event.study-plan-event {
+            border-left: 4px solid currentColor;
+        }
+
+        .demo-calendar-event.study-plan-event.course-colour-berry {
+            background: #f7e7ed;
+            color: #773049;
+        }
+
+        .demo-calendar-event.study-plan-event.course-colour-sage {
+            background: #e8f0e6;
+            color: #49604e;
+        }
+
+        .demo-calendar-event.study-plan-event.course-colour-gold {
+            background: #f8efd9;
+            color: #7b5b1f;
+        }
+
+        .study-plan-calendar-label {
+            display: block;
+            margin-top: 3px;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            opacity: 0.75;
+            text-transform: uppercase;
+        }
+
+        .calendar-study-plan-link {
+            display: grid;
+            width: 23px;
+            height: 23px;
+            place-items: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.94);
+            color: inherit;
+            font-size: 12px;
+            font-weight: 800;
+            text-decoration: none;
+            box-shadow: 0 1px 4px rgba(36, 34, 29, 0.16);
+        }
+
+        .calendar-legend-divider {
+            width: 1px;
+            height: 18px;
+            margin: 0 4px;
+            background: var(--line);
+        }
+
+        .calendar-legend .study-plan-course-colour {
+            background: linear-gradient(
+                90deg,
+                var(--berry) 0 33.33%,
+                var(--sage-dark) 33.33% 66.66%,
+                var(--gold) 66.66% 100%
+            );
+        }
+        .calendar-legend {
+    align-items: center;
+}
+
+        .calendar-legend-note {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1;
+}
+
         @media (max-width: 800px) {
             .calendar-scroll-window {
                 max-height: 560px;
@@ -326,9 +397,11 @@
                         >
                             {% for event in day["events"] %}
                                 <div
-                                    class="demo-calendar-event {{ event['category'] }}"
+                                    class="demo-calendar-event {{ event['category'] }}{% if event.get('source_type') == 'study_plan' %} study-plan-event course-colour-{{ event['course_colour'] }}{% endif %}"
                                     style="top: {{ event['top'] }}px; height: {{ event['height'] }}px;"
-                                    data-edit-action="{{ url_for('edit_event', event_id=event['id']) }}"
+                                    {% if event.get('source_type') != 'study_plan' %}
+                                        data-edit-action="{{ url_for('edit_event', event_id=event['id']) }}"
+                                    {% endif %}
                                     data-title="{{ event['title']|e }}"
                                     data-date="{{ event['event_date'] }}"
                                     data-start="{{ event['start_time'] }}"
@@ -339,22 +412,37 @@
                                     <time>{{ event["display_time"] }}</time>
                                     <strong>{{ event["title"] }}</strong>
 
+                                    {% if event.get('source_type') == 'study_plan' %}
+                                        <span class="study-plan-calendar-label">
+                                            {{ event['course_code'] or 'Study' }} · Study Plan
+                                        </span>
+                                    {% endif %}
+
                                     {% if event["notes"] %}
                                         <p>{{ event["notes"] }}</p>
                                     {% endif %}
 
                                     <div class="calendar-event-actions">
-                                        <button type="button" class="calendar-event-edit" aria-label="Edit event" title="Edit event">✎</button>
-                                        <form
-                                            method="POST"
-                                            action="{{ url_for(
-                                                'delete_event',
-                                                event_id=event['id']
-                                            ) }}"
-                                            onsubmit="return confirm('Delete this event?');"
-                                        >
-                                            <button type="submit" aria-label="Delete event" title="Delete event">×</button>
-                                        </form>
+                                        {% if event.get('source_type') == 'study_plan' %}
+                                            <a
+                                                class="calendar-study-plan-link"
+                                                href="{{ url_for('study_plan') }}#planned-sessions"
+                                                aria-label="Manage in Study Plan"
+                                                title="Manage in Study Plan"
+                                            >↗</a>
+                                        {% else %}
+                                            <button type="button" class="calendar-event-edit" aria-label="Edit event" title="Edit event">✎</button>
+                                            <form
+                                                method="POST"
+                                                action="{{ url_for(
+                                                    'delete_event',
+                                                    event_id=event['id']
+                                                ) }}"
+                                                onsubmit="return confirm('Delete this event?');"
+                                            >
+                                                <button type="submit" aria-label="Delete event" title="Delete event">×</button>
+                                            </form>
+                                        {% endif %}
                                     </div>
                                 </div>
                             {% endfor %}
@@ -368,6 +456,14 @@
                     <span><i class="study"></i>Study</span>
                     <span><i class="meeting"></i>Meeting</span>
                     <span><i class="personal"></i>Personal</span>
+                    <span class="calendar-legend-divider" aria-hidden="true"></span>
+                    <span>
+                        <i class="study-plan-course-colour"></i>
+                        Study Plan
+                    </span>
+                    <small class="calendar-legend-note">
+                        Sessions use their course colour
+                    </small>
                 </div>
             </section>
         </main>
