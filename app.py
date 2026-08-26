@@ -4305,12 +4305,27 @@ def generate_study_plan():
     # If no assessments are selected, Planet balances sessions by course.
     plan_targets = []
     for assessment in assessments:
+        due_date = datetime.strptime(
+            assessment["due_date"], "%Y-%m-%d"
+        ).date()
+        days_until_due = max(0, (due_date - today).days)
+
+        # Closer deadlines receive more urgency points. Assessment weight adds
+        # importance, but is capped so one large exam cannot take every slot.
+        urgency_points = max(1, 8 - min(days_until_due, 7))
+        try:
+            assessment_weight = max(0.0, float(assessment["weight"] or 0))
+        except (TypeError, ValueError):
+            assessment_weight = 0.0
+        weight_points = max(1, min(5, round(assessment_weight / 10)))
+
         plan_targets.append({
             "course_id": assessment["course_id"],
             "assessment_id": assessment["id"],
             "title": f"Study for {assessment['name']}",
             "notes": f"Priority session for {assessment['course_code']}.",
-            "due_date": assessment["due_date"]
+            "due_date": assessment["due_date"],
+            "priority_score": urgency_points + weight_points
         })
 
     if not plan_targets:
@@ -4379,6 +4394,11 @@ def generate_study_plan():
 
     generated = []
     target_index = 0
+    target_session_counts = {
+        target["assessment_id"]: 0
+        for target in plan_targets
+        if target["assessment_id"] is not None
+    }
     now = datetime.now()
 
     for day_offset in range(7):
@@ -4419,8 +4439,28 @@ def generate_study_plan():
                 slot_start += 15
                 continue
 
-            target = eligible_targets[target_index % len(eligible_targets)]
-            target_index += 1
+            if assessments:
+                # A target's effective score falls each time it receives a
+                # session. This creates a weighted, fair rotation: urgent and
+                # high-value assessments receive more sessions, while every
+                # selected deadline can still receive study time.
+                target = max(
+                    eligible_targets,
+                    key=lambda item: (
+                        item["priority_score"]
+                        / (
+                            target_session_counts[item["assessment_id"]] + 1
+                        ),
+                        -datetime.strptime(
+                            item["due_date"], "%Y-%m-%d"
+                        ).date().toordinal(),
+                        item["priority_score"]
+                    )
+                )
+                target_session_counts[target["assessment_id"]] += 1
+            else:
+                target = eligible_targets[target_index % len(eligible_targets)]
+                target_index += 1
 
             connection.execute(
                 """
