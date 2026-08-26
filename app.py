@@ -3,6 +3,7 @@ import os
 import re
 from io import BytesIO
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from urllib.parse import urlparse
 from flask import (
     Flask,
@@ -27,6 +28,44 @@ app.secret_key = os.environ.get(
     "planet-local-development-key"
 )
 
+DEFAULT_TIMEZONE = os.environ.get(
+    "PLANET_TIMEZONE", "America/Toronto"
+)
+try:
+    ZoneInfo(DEFAULT_TIMEZONE)
+except (ZoneInfoNotFoundError, ValueError):
+    DEFAULT_TIMEZONE = "America/Toronto"
+
+
+def _valid_timezone_name(value):
+    timezone_name = str(value or "").strip()
+    try:
+        ZoneInfo(timezone_name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return None
+    return timezone_name
+
+
+def _ensure_user_timezone_column(connection):
+    columns = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(users)").fetchall()
+    }
+    if "timezone" not in columns:
+        connection.execute(
+            "ALTER TABLE users ADD COLUMN timezone TEXT NOT NULL "
+            "DEFAULT 'America/Toronto'"
+        )
+        connection.commit()
+
+
+def planet_now():
+    """Return local time for the currently signed-in Planet user."""
+    timezone_name = _valid_timezone_name(
+        session.get("timezone", DEFAULT_TIMEZONE)
+    ) or DEFAULT_TIMEZONE
+    return datetime.now(ZoneInfo(timezone_name)).replace(tzinfo=None)
+
 
 @app.route("/")
 def home():
@@ -45,6 +84,7 @@ def login():
 
     connection = sqlite3.connect("planet.db")
     connection.row_factory = sqlite3.Row
+    _ensure_user_timezone_column(connection)
 
     user = connection.execute(
         "SELECT * FROM users WHERE email = ?",
@@ -70,6 +110,9 @@ def login():
 
     session["user_id"] = user["id"]
     session["first_name"] = user["first_name"]
+    session["timezone"] = (
+        _valid_timezone_name(user["timezone"]) or DEFAULT_TIMEZONE
+    )
 
     return redirect(url_for("dashboard"))
 
@@ -94,6 +137,7 @@ def signup():
         )
 
         connection = sqlite3.connect("planet.db")
+        _ensure_user_timezone_column(connection)
 
         existing_user = connection.execute(
             "SELECT id FROM users WHERE email = ?",
@@ -133,6 +177,7 @@ def signup():
 
         session["user_id"] = new_user_id
         session["first_name"] = first_name
+        session["timezone"] = DEFAULT_TIMEZONE
 
         return redirect(url_for("dashboard"))
 
@@ -148,8 +193,8 @@ def dashboard():
     connection = sqlite3.connect("planet.db")
     connection.row_factory = sqlite3.Row
 
-    today = datetime.now().date()
-    now = datetime.now()
+    today = planet_now().date()
+    now = planet_now()
 
     active_semester = None
     courses = []
@@ -545,6 +590,33 @@ def dashboard():
 def logout():
     session.clear()
     return redirect(url_for("home"))
+
+
+@app.route("/settings/timezone", methods=["POST"])
+def update_timezone():
+    if "user_id" not in session:
+        return {"success": False}, 401
+
+    payload = request.get_json(silent=True) or {}
+    timezone_name = _valid_timezone_name(payload.get("timezone"))
+    if timezone_name is None:
+        return {"success": False, "message": "Invalid timezone."}, 400
+
+    changed = session.get("timezone") != timezone_name
+    if not changed:
+        return {"success": True, "changed": False}
+
+    connection = sqlite3.connect("planet.db")
+    _ensure_user_timezone_column(connection)
+    connection.execute(
+        "UPDATE users SET timezone = ? WHERE id = ?",
+        (timezone_name, session["user_id"])
+    )
+    connection.commit()
+    connection.close()
+
+    session["timezone"] = timezone_name
+    return {"success": True, "changed": changed}
 
 @app.route("/semester", methods=["GET", "POST"])
 def semester():
@@ -1397,7 +1469,7 @@ def course_details(course_id):
             assessment["score"] is None
             and assessment["due_date"]
             and assessment["due_date"]
-            >= datetime.now().date().isoformat()
+            >= planet_now().date().isoformat()
         ):
             if (
                 next_due is None
@@ -1710,9 +1782,9 @@ def calendar():
         selected_date = datetime.strptime(
             requested_date,
             "%Y-%m-%d"
-        ).date() if requested_date else datetime.now().date()
+        ).date() if requested_date else planet_now().date()
     except ValueError:
-        selected_date = datetime.now().date()
+        selected_date = planet_now().date()
 
     # Planet's weekly calendar runs Sunday through Saturday.
     days_since_sunday = (selected_date.weekday() + 1) % 7
@@ -1791,7 +1863,7 @@ def calendar():
         "calendar.html",
         name=session["first_name"],
         days=days,
-        today=datetime.now().date(),
+        today=planet_now().date(),
         week_start=week_start,
         week_end=week_end,
         previous_week=(week_start - timedelta(days=7)).isoformat(),
@@ -2030,8 +2102,8 @@ def todo():
             search_pattern
         ])
 
-    today = datetime.now().date().isoformat()
-    current_time = datetime.now().strftime("%H:%M")
+    today = planet_now().date().isoformat()
+    current_time = planet_now().strftime("%H:%M")
 
     if task_filter == "today":
         task_conditions.append(
@@ -2113,7 +2185,7 @@ def todo():
         task_values
        ).fetchall()
     tasks = []
-    now = datetime.now()
+    now = planet_now()
     today_date = now.date()
 
     for row in task_rows:
@@ -2495,7 +2567,7 @@ def create_goals_table(connection):
 
 
 def goal_period_bounds(connection, goal, user_id, now=None):
-    now = now or datetime.now()
+    now = now or planet_now()
     period = goal["period"] or "custom"
 
     if period == "weekly":
@@ -2559,7 +2631,7 @@ def goal_period_bounds(connection, goal, user_id, now=None):
 
 def build_goal_list(connection, user_id):
     create_goals_table(connection)
-    now = datetime.now()
+    now = planet_now()
 
     goal_rows = connection.execute(
         """
@@ -3384,7 +3456,7 @@ def focus():
             focus_session
         )
 
-    now = datetime.now()
+    now = planet_now()
 
     start_of_week = (
         now
@@ -3714,7 +3786,7 @@ def save_focus_timer():
     # seconds into a full minute of study time.
     duration_minutes = elapsed_seconds // 60
 
-    ended_at = datetime.now()
+    ended_at = planet_now()
 
     started_at = ended_at - timedelta(
         seconds=elapsed_seconds
@@ -4272,7 +4344,7 @@ def generate_study_plan():
             error="Add at least one course before generating a plan."
         ))
 
-    today = datetime.now().date()
+    today = planet_now().date()
     window_end = today + timedelta(days=6)
     selected_assessment_ids = request.form.getlist("assessment_ids", type=int)
     assessments = []
@@ -4399,7 +4471,7 @@ def generate_study_plan():
         for target in plan_targets
         if target["assessment_id"] is not None
     }
-    now = datetime.now()
+    now = planet_now()
 
     for day_offset in range(7):
         if remaining_minutes <= 0:
@@ -4866,7 +4938,7 @@ def gratitude():
         name=session["first_name"],
         entries=entries,
         labels=GRATITUDE_LABELS,
-        today=datetime.now().date().isoformat(),
+        today=planet_now().date().isoformat(),
         saved=request.args.get("saved"),
         error=request.args.get("error")
     )
