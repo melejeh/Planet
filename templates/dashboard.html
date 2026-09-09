@@ -21,14 +21,14 @@
                             <select id="dashboard-semester" onchange="if (this.value) { this.form.action = this.value; this.form.submit(); }">
                                 <option value="" disabled {% if not session.get("active_semester_id") %}selected{% endif %}>Choose semester</option>
                                 {% for semester in semesters %}
-                                    <option value="{{ url_for('select_semester', semester_id=semester['id']) }}" {% if semester["id"] == session.get("active_semester_id") %}selected{% endif %}>
+                                    <option value="{{ url_for('courses.select_semester', semester_id=semester['id']) }}" {% if semester["id"] == session.get("active_semester_id") %}selected{% endif %}>
                                         {{ semester["name"] }}
                                     </option>
                                 {% endfor %}
                             </select>
                         </form>
                     {% else %}
-                        <a class="create-semester-link" href="{{ url_for('semester') }}">＋ Create semester</a>
+                        <a class="create-semester-link" href="{{ url_for('courses.semester') }}">＋ Create semester</a>
                     {% endif %}
                     <input id="dashboard-search" type="search" placeholder="Search your planet...">
                 </div>
@@ -62,12 +62,12 @@
                                 {{ next_assessment["weight"] }}% of {{ next_assessment["course_name"] }}
                             </p>
                         </div>
-                        <a class="dark-action-link" href="{{ url_for('course_details', course_id=next_assessment['course_id']) }}">View course →</a>
+                        <a class="dark-action-link" href="{{ url_for('courses.course_details', course_id=next_assessment['course_id']) }}">View course →</a>
                     </section>
                 {% endif %}
 
                 <section class="summary-grid dashboard-summary-grid">
-                    <a class="summary-card dashboard-goal-summary" href="{{ url_for('goals') }}">
+                    <a class="summary-card dashboard-goal-summary" href="{{ url_for('goals.goals') }}">
                         <span>Goals completed</span>
                         <strong>{{ goal_completed }}/{{ goal_total }}</strong>
                         <small>
@@ -103,7 +103,7 @@
                             <p class="eyebrow">SHORTCUTS</p>
                             <h2>Quick links</h2>
                         </div>
-                        <a class="text-button" href="{{ url_for('settings') }}#quick-links">Manage →</a>
+                        <a class="text-button" href="{{ url_for('settings.settings') }}#quick-links">Manage →</a>
                     </div>
 
                     {% if quick_links %}
@@ -120,7 +120,7 @@
                         <div class="dashboard-empty-state compact">
                             <strong>Keep your school portals close.</strong>
                             <p>Add Student Centre, your learning platform, email or library.</p>
-                            <a href="{{ url_for('settings') }}#quick-links">Add a quick link →</a>
+                            <a href="{{ url_for('settings.settings') }}#quick-links">Add a quick link →</a>
                         </div>
                     {% endif %}
                 </section>
@@ -129,7 +129,7 @@
                     <article class="dashboard-card">
                         <div class="section-heading">
                             <h2>Today’s schedule</h2>
-                            <a class="text-button" href="{{ url_for('calendar') }}">Full calendar →</a>
+                            <a class="text-button" href="{{ url_for('calendar_bp.calendar') }}">Full calendar →</a>
                         </div>
                         {% if today_events %}
                             {% for event in today_events %}
@@ -147,7 +147,7 @@
                             <div class="dashboard-empty-state">
                                 <strong>Your day is open.</strong>
                                 <p>Add an event from the calendar and it will appear here.</p>
-                                <a href="{{ url_for('calendar') }}">Open calendar →</a>
+                                <a href="{{ url_for('calendar_bp.calendar') }}">Open calendar →</a>
                             </div>
                         {% endif %}
                     </article>
@@ -161,7 +161,7 @@
 
         <a
             class="text-button"
-            href="{{ url_for('todo') }}"
+            href="{{ url_for('tasks.todo') }}"
         >
             View all →
         </a>
@@ -174,7 +174,7 @@
                     <form
                         method="POST"
                         action="{{ url_for(
-                            'toggle_task',
+                            'tasks.toggle_task',
                             task_id=task['id']
                         ) }}"
                     >
@@ -233,7 +233,7 @@
                 New incomplete tasks will appear here.
             </p>
 
-            <a href="{{ url_for('todo') }}">
+            <a href="{{ url_for('tasks.todo') }}">
                 Add a task →
             </a>
         </div>
@@ -244,12 +244,12 @@
                 <section class="dashboard-card upcoming-deadlines-card">
                     <div class="section-heading">
                         <h2>Upcoming deadlines</h2>
-                        <a class="text-button" href="{{ url_for('semester') }}">View courses →</a>
+                        <a class="text-button" href="{{ url_for('courses.semester') }}">View courses →</a>
                     </div>
                     {% if upcoming_assessments %}
                         <div class="deadline-list">
                             {% for assessment in upcoming_assessments %}
-                                <a class="deadline-item" href="{{ url_for('course_details', course_id=assessment['course_id']) }}">
+                                <a class="deadline-item" href="{{ url_for('courses.course_details', course_id=assessment['course_id']) }}">
                                     <span class="deadline-date"><small>{{ assessment["month"] }}</small><strong>{{ assessment["day"] }}</strong></span>
                                     <span class="deadline-copy">
                                         <strong>{{ assessment["name"] }}</strong>

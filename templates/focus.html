@@ -322,7 +322,7 @@
     <div class="focus-session-actions">
         <a
             href="{{ url_for(
-                'edit_focus_session',
+                'focus.edit_focus_session',
                 focus_session_id=study_session['id']
             ) }}"
         >
@@ -332,7 +332,7 @@
         <form
             method="POST"
             action="{{ url_for(
-                'delete_focus_session',
+                'focus.delete_focus_session',
                 focus_session_id=study_session['id']
             ) }}"
             onsubmit="
@@ -413,7 +413,7 @@
 
             <form
                 method="POST"
-                action="{{ url_for('focus') }}"
+                action="{{ url_for('focus.focus') }}"
                 class="focus-log-form"
             >
                 <label>
@@ -644,7 +644,7 @@
     );
 
     const timerSaveUrl = (
-        "{{ url_for('save_focus_timer') }}"
+        "{{ url_for('focus.save_focus_timer') }}"
     );
 
 

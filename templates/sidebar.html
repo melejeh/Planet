@@ -8,7 +8,7 @@
     <nav class="sidebar-nav">
         <a
             class="{% if active_page == 'dashboard' %}active{% endif %}"
-            href="{{ url_for('dashboard') }}"
+            href="{{ url_for('dashboard.dashboard') }}"
         >
             <span>⌂</span>
             Dashboard
@@ -16,14 +16,14 @@
 
         <a
             class="{% if active_page == 'semester' %}active{% endif %}"
-            href="{{ url_for('semester') }}"
+            href="{{ url_for('courses.semester') }}"
         >
             <span>▤</span>
             Courses &amp; Grades
         </a>
 
         <a
-    href="{{ url_for('study_plan') }}"
+    href="{{ url_for('study_plan.study_plan') }}"
     class="{% if active_page == 'study_plan' %}active{% endif %}"
 >
     <span>✦</span>
@@ -32,21 +32,21 @@
 
         <a
     class="{% if active_page == 'calendar' %}active{% endif %}"
-    href="{{ url_for('calendar') }}"
+    href="{{ url_for('calendar_bp.calendar') }}"
 >
     <span>□</span>
     Calendar
 </a>
 
         <a
-    href="{{ url_for('todo') }}"
+    href="{{ url_for('tasks.todo') }}"
     class="{% if active_page == 'todo' %}active{% endif %}"
 >
     <span>✓</span>
     To-Do
 </a>
         <a
-            href="{{ url_for('goals') }}"
+            href="{{ url_for('goals.goals') }}"
             class="{% if active_page == 'goals' %}active{% endif %}"
         >
             <span>◎</span>
@@ -54,7 +54,7 @@
         </a>
 
         <a
-            href="{{ url_for('gratitude') }}"
+            href="{{ url_for('gratitude.gratitude') }}"
             class="{% if active_page == 'gratitude' %}active{% endif %}"
         >
             <span>♡</span>
@@ -62,7 +62,7 @@
         </a>
 
        <a
-    href="{{ url_for('focus') }}"
+    href="{{ url_for('focus.focus') }}"
     class="{% if active_page == 'focus' %}active{% endif %}"
 >
     <span>◉</span>
@@ -70,7 +70,7 @@
 </a>
 
         <a
-            href="{{ url_for('settings') }}"
+            href="{{ url_for('settings.settings') }}"
             class="{% if active_page == 'settings' %}active{% endif %}"
         >
             <span>⚙</span>
@@ -86,7 +86,7 @@
         <div class="profile-details">
             <span class="profile-name">{{ name }}</span>
 
-            <a class="sign-out-link" href="{{ url_for('logout') }}">
+            <a class="sign-out-link" href="{{ url_for('auth.logout') }}">
                 Sign out
             </a>
         </div>
@@ -107,7 +107,7 @@
             .timeZone;
 
         if (detectedTimezone) {
-            fetch("{{ url_for('update_timezone') }}", {
+            fetch("{{ url_for('settings.update_timezone') }}", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({timezone: detectedTimezone})

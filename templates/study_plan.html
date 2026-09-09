@@ -369,7 +369,7 @@
                                             <form
                                                 method="POST"
                                                 class="study-status-form"
-                                                action="{{ url_for('update_study_block_status', block_id=block['id']) }}"
+                                                action="{{ url_for('study_plan.update_study_block_status', block_id=block['id']) }}"
                                             >
                                                 {% if block["status"] == "completed" %}
                                                     <input type="hidden" name="status" value="planned">
@@ -383,7 +383,7 @@
                                             <button
                                                 type="button"
                                                 class="text-button edit-session-button"
-                                                data-action="{{ url_for('edit_study_block', block_id=block['id']) }}"
+                                                data-action="{{ url_for('study_plan.edit_study_block', block_id=block['id']) }}"
                                                 data-title="{{ block['title']|e }}"
                                                 data-notes="{{ (block['notes'] or '')|e }}"
                                                 data-date="{{ block['scheduled_date'] }}"
@@ -398,7 +398,7 @@
                                             <form
                                                 method="POST"
                                                 class="study-delete-form"
-                                                action="{{ url_for('delete_study_block', block_id=block['id']) }}"
+                                                action="{{ url_for('study_plan.delete_study_block', block_id=block['id']) }}"
                                             >
                                                 <button type="submit" class="text-button danger-text-button">
                                                     Delete
@@ -528,7 +528,7 @@
                     id="plan-selection-form"
                     class="hidden-plan-form"
                     method="POST"
-                    action="{{ url_for('generate_study_plan') }}"
+                    action="{{ url_for('study_plan.generate_study_plan') }}"
                 >
                     <input
                         type="hidden"
@@ -564,7 +564,7 @@
 
             <form
                 method="POST"
-                action="{{ url_for('add_study_block') }}"
+                action="{{ url_for('study_plan.add_study_block') }}"
                 class="study-settings-form"
                 id="session-form"
             >
@@ -810,7 +810,7 @@
         const sessionForm = document.getElementById("session-form");
         const sessionModalTitle = document.getElementById("session-modal-title");
         const sessionSubmit = document.getElementById("session-submit");
-        const addSessionAction = "{{ url_for('add_study_block') }}";
+        const addSessionAction = "{{ url_for('study_plan.add_study_block') }}";
 
         document.getElementById("plan-selection-form").addEventListener("submit", (event) => {
             const replaceGenerated = event.currentTarget.querySelector(
@@ -1040,7 +1040,7 @@
         const deleteSelectedButton = document.getElementById("delete-selected-sessions");
         const cancelSelectionButton = document.getElementById("cancel-session-selection");
         const selectedSessionCount = document.getElementById("selected-session-count");
-        const bulkDeleteAction = "{{ url_for('delete_selected_study_blocks') }}";
+        const bulkDeleteAction = "{{ url_for('study_plan.delete_selected_study_blocks') }}";
 
         function selectedSessionCheckboxes() {
             return [...document.querySelectorAll(".study-session-checkbox:checked")];

@@ -98,7 +98,7 @@
                 <a
                     class="course-back-link"
                     href="{{ url_for(
-                        'course_details',
+                        'courses.course_details',
                         course_id=course['id']
                     ) }}"
                 >
@@ -118,7 +118,7 @@
                     class="edit-course-form"
                     method="POST"
                     action="{{ url_for(
-                        'edit_course',
+                        'courses.edit_course',
                         course_id=course['id']
                     ) }}"
                 >
@@ -192,7 +192,7 @@
                         <a
                             class="outline-button"
                             href="{{ url_for(
-                                'course_details',
+                                'courses.course_details',
                                 course_id=course['id']
                             ) }}"
                         >

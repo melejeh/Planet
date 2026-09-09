@@ -136,7 +136,7 @@
                     </div>
 
                     <div class="semester-heading-actions">
-                        <a href="{{ url_for('import_timetable') }}" class="secondary-button">
+                        <a href="{{ url_for('imports.import_timetable') }}" class="secondary-button">
                             ▦ Import timetable
                         </a>
 
@@ -160,7 +160,7 @@
                                 <form
                                     method="POST"
                                     action="{{ url_for(
-                                        'select_semester',
+                                        'courses.select_semester',
                                         semester_id=semester['id']
                                     ) }}"
                                 >
@@ -175,7 +175,7 @@
                                 <form
                                     method="POST"
                                     action="{{ url_for(
-                                        'delete_semester',
+                                        'courses.delete_semester',
                                         semester_id=semester['id']
                                     ) }}"
                                     onsubmit="return confirm('Are you sure you want to delete this semester?');"
@@ -366,7 +366,7 @@
                         class="course-delete-form"
                         method="POST"
                         action="{{ url_for(
-                            'delete_course',
+                            'courses.delete_course',
                             course_id=course['id']
                         ) }}"
                         onsubmit="return confirm('Are you sure you want to delete this course?');"
@@ -384,7 +384,7 @@
                     <a
                         class="course-card-content course-card-link"
                         href="{{ url_for(
-                            'course_details',
+                            'courses.course_details',
                             course_id=course['id']
                         ) }}"
                         style="color: inherit; text-decoration: none;"
@@ -431,7 +431,7 @@
                     </a>
                     <a
                         class="course-outline-import-link"
-                        href="{{ url_for('import_course_outline', course_id=course['id']) }}"
+                        href="{{ url_for('imports.import_course_outline', course_id=course['id']) }}"
                         title="Import assessments from a PDF course outline"
                     >▤ Import outline</a>
                 </article>
@@ -458,7 +458,7 @@
                     Add courses manually
                 </button>
 
-                <a href="{{ url_for('import_timetable') }}" class="dark-button">
+                <a href="{{ url_for('imports.import_timetable') }}" class="dark-button">
                     Import timetable
                 </a>
             </div>

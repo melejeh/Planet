@@ -12,7 +12,7 @@
         {% include "sidebar.html" %}
         <main class="dashboard-main">
             <header class="dashboard-topbar">
-                <a class="text-button" href="{{ url_for('course_details', course_id=course['id']) }}">← Back to course</a>
+                <a class="text-button" href="{{ url_for('courses.course_details', course_id=course['id']) }}">← Back to course</a>
             </header>
             <section class="timetable-import-content">
                 <header class="timetable-import-heading">
@@ -56,7 +56,7 @@
                         <p>{{ warning }}</p>
                     </div>
                 {% endif %}
-                <form method="POST" action="{{ url_for('confirm_course_outline_import', course_id=course['id']) }}">
+                <form method="POST" action="{{ url_for('imports.confirm_course_outline_import', course_id=course['id']) }}">
                     <div id="outline-review-list" class="timetable-review-list">
                         {% for assessment in assessments %}
                             <article class="outline-assessment-row">

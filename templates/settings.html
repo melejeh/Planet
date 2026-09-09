@@ -110,7 +110,7 @@
                         </div>
                     {% endif %}
 
-                    <form method="POST" action="{{ url_for('change_password') }}" class="security-form">
+                    <form method="POST" action="{{ url_for('settings.change_password') }}" class="security-form">
                         <div class="settings-field-grid security-fields">
                             <label>
                                 Current password
@@ -158,7 +158,7 @@
                         <span>Shown on your dashboard</span>
                     </div>
 
-                    <form method="POST" action="{{ url_for('add_quick_link') }}" class="quick-link-form">
+                    <form method="POST" action="{{ url_for('settings.add_quick_link') }}" class="quick-link-form">
                         <label>Link name<input type="text" name="name" placeholder="Student Centre" maxlength="60" required></label>
                         <label>Website address<input type="url" name="url" placeholder="https://student.uwo.ca" required></label>
                         <label>Category
@@ -181,7 +181,7 @@
                                     <div><strong>{{ link['name'] }}</strong><small>{{ link['url'] }}</small></div>
                                     <div class="quick-link-row-actions">
                                         <span class="quick-link-category">{{ link['category']|capitalize }}</span>
-                                        <form method="POST" class="quick-link-delete-form" action="{{ url_for('delete_quick_link', link_id=link['id']) }}">
+                                        <form method="POST" class="quick-link-delete-form" action="{{ url_for('settings.delete_quick_link', link_id=link['id']) }}">
                                             <button type="submit" class="text-button danger-text-button">Delete</button>
                                         </form>
                                     </div>

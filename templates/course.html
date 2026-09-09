@@ -50,7 +50,7 @@
                         <a
     class="outline-button"
     href="{{ url_for(
-        'edit_course',
+        'courses.edit_course',
         course_id=course['id']
     ) }}"
 >
@@ -164,7 +164,7 @@
                         class="assessment-form"
                         method="POST"
                         action="{{ url_for(
-                            'add_assessment',
+                            'courses.add_assessment',
                             course_id=course['id']
                         ) }}"
                     >
@@ -297,7 +297,7 @@
                                         <a
                                             class="edit-assessment-button"
                                             href="{{ url_for(
-                                                'edit_assessment',
+                                                'courses.edit_assessment',
                                                 assessment_id=assessment['id']
                                             ) }}"
                                         >
@@ -307,7 +307,7 @@
                                         <form
                                             method="POST"
                                             action="{{ url_for(
-                                                'delete_assessment',
+                                                'courses.delete_assessment',
                                                 assessment_id=assessment['id']
                                             ) }}"
                                             onsubmit="return confirm(
@@ -372,7 +372,7 @@
                     <form
                         method="POST"
     action="{{ url_for(
-        'course_details',
+        'courses.course_details',
         course_id=course['id']
     ) }}#final-grade-calculator"
     class="final-grade-form"

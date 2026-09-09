@@ -228,7 +228,7 @@
                         </button>
                     </div>
 
-                    <form id="event-form" method="POST" action="{{ url_for('calendar') }}">
+                    <form id="event-form" method="POST" action="{{ url_for('calendar_bp.calendar') }}">
                         <div class="event-form-grid">
                             <label>
                                 Event name
@@ -334,7 +334,7 @@
                 <nav class="calendar-week-navigation demo-week-navigation">
                     <a
                         class="secondary-button"
-                        href="{{ url_for('calendar', week=previous_week) }}"
+                        href="{{ url_for('calendar_bp.calendar', week=previous_week) }}"
                     >
                         ← Previous
                     </a>
@@ -349,14 +349,14 @@
                     <div class="calendar-navigation-actions">
                         <a
                             class="secondary-button"
-                            href="{{ url_for('calendar') }}"
+                            href="{{ url_for('calendar_bp.calendar') }}"
                         >
                             Today
                         </a>
 
                         <a
                             class="secondary-button"
-                            href="{{ url_for('calendar', week=next_week) }}"
+                            href="{{ url_for('calendar_bp.calendar', week=next_week) }}"
                         >
                             Next →
                         </a>
@@ -400,7 +400,7 @@
                                     class="demo-calendar-event {{ event['category'] }}{% if event.get('source_type') == 'study_plan' %} study-plan-event course-colour-{{ event['course_colour'] }}{% endif %}"
                                     style="top: {{ event['top'] }}px; height: {{ event['height'] }}px;"
                                     {% if event.get('source_type') != 'study_plan' %}
-                                        data-edit-action="{{ url_for('edit_event', event_id=event['id']) }}"
+                                        data-edit-action="{{ url_for('calendar_bp.edit_event', event_id=event['id']) }}"
                                     {% endif %}
                                     data-title="{{ event['title']|e }}"
                                     data-date="{{ event['event_date'] }}"
@@ -426,7 +426,7 @@
                                         {% if event.get('source_type') == 'study_plan' %}
                                             <a
                                                 class="calendar-study-plan-link"
-                                                href="{{ url_for('study_plan') }}#planned-sessions"
+                                                href="{{ url_for('study_plan.study_plan') }}#planned-sessions"
                                                 aria-label="Manage in Study Plan"
                                                 title="Manage in Study Plan"
                                             >↗</a>
@@ -435,7 +435,7 @@
                                             <form
                                                 method="POST"
                                                 action="{{ url_for(
-                                                    'delete_event',
+                                                    'calendar_bp.delete_event',
                                                     event_id=event['id']
                                                 ) }}"
                                                 onsubmit="return confirm('Delete this event?');"
@@ -474,7 +474,7 @@
         const eventFormPanel = document.getElementById("event-form-panel");
         const eventFormTitle = document.getElementById("event-form-title");
         const eventSubmitButton = document.getElementById("event-submit-button");
-        const addEventAction = "{{ url_for('calendar') }}";
+        const addEventAction = "{{ url_for('calendar_bp.calendar') }}";
 
         function showEventForm() {
             eventFormPanel.classList.add("is-open");

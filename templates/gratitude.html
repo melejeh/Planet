@@ -33,7 +33,7 @@
                         <p class="eyebrow">TODAY'S NOTE</p>
                         <h2>What are you grateful for?</h2>
 
-                        <form method="POST" action="{{ url_for('gratitude') }}" class="gratitude-form">
+                        <form method="POST" action="{{ url_for('gratitude.gratitude') }}" class="gratitude-form">
                             <label>
                                 Date
                                 <input type="date" name="entry_date" value="{{ today }}" required>
@@ -88,13 +88,13 @@
                                             <button
                                                 type="button"
                                                 class="text-button edit-gratitude-button"
-                                                data-action="{{ url_for('edit_gratitude', entry_id=entry['id']) }}"
+                                                data-action="{{ url_for('gratitude.edit_gratitude', entry_id=entry['id']) }}"
                                                 data-date="{{ entry['entry_date'] }}"
                                                 data-label="{{ entry['label'] }}"
                                                 data-title="{{ entry['title']|e }}"
                                                 data-note="{{ entry['note']|e }}"
                                             >Edit</button>
-                                            <form method="POST" action="{{ url_for('delete_gratitude', entry_id=entry['id']) }}" onsubmit="return confirm('Delete this gratitude entry?');">
+                                            <form method="POST" action="{{ url_for('gratitude.delete_gratitude', entry_id=entry['id']) }}" onsubmit="return confirm('Delete this gratitude entry?');">
                                                 <button type="submit" class="text-button danger-text-button">Delete</button>
                                             </form>
                                         </div>

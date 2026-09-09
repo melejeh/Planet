@@ -67,7 +67,7 @@
                                         {% if goal['deadline_label'] %}<span>Due {{ goal["deadline_label"] }}</span>{% endif %}
                                     </div>
 
-                                    <form class="goal-progress-form goal-ajax-form" method="POST" action="{{ url_for('update_goal_progress', goal_id=goal['id']) }}">
+                                    <form class="goal-progress-form goal-ajax-form" method="POST" action="{{ url_for('goals.update_goal_progress', goal_id=goal['id']) }}">
                                         <label>
                                             Current progress
                                             <input type="number" name="current_value" min="0" step="0.1" value="{{ goal['current_display'] }}">
@@ -76,7 +76,7 @@
                                     </form>
 
                                     <div class="goal-card-actions">
-                                        <form class="goal-ajax-form" method="POST" action="{{ url_for('toggle_goal', goal_id=goal['id']) }}">
+                                        <form class="goal-ajax-form" method="POST" action="{{ url_for('goals.toggle_goal', goal_id=goal['id']) }}">
                                             <button type="submit" class="text-button">
                                                 {% if goal['is_complete'] %}Mark active{% else %}Mark complete{% endif %}
                                             </button>
@@ -85,7 +85,7 @@
                                         <button
                                             type="button"
                                             class="text-button goal-edit-button"
-                                            data-action="{{ url_for('edit_goal', goal_id=goal['id']) }}"
+                                            data-action="{{ url_for('goals.edit_goal', goal_id=goal['id']) }}"
                                             data-title="{{ goal['title']|e }}"
                                             data-target="{{ goal['target_display'] }}"
                                             data-unit="{{ goal['unit']|e }}"
@@ -93,7 +93,7 @@
                                             data-deadline="{{ goal['deadline'] or '' }}"
                                         >Edit</button>
 
-                                        <form class="goal-ajax-form goal-delete-form" method="POST" action="{{ url_for('delete_goal', goal_id=goal['id']) }}">
+                                        <form class="goal-ajax-form goal-delete-form" method="POST" action="{{ url_for('goals.delete_goal', goal_id=goal['id']) }}">
                                             <button type="submit" class="goal-delete-button">Delete</button>
                                         </form>
                                     </div>
@@ -147,7 +147,7 @@
             <p class="eyebrow">NEW GOAL</p>
             <h2 id="goal-form-title">What are you working toward?</h2>
 
-            <form method="POST" action="{{ url_for('goals') }}" class="goal-create-form">
+            <form method="POST" action="{{ url_for('goals.goals') }}" class="goal-create-form">
                 <input type="hidden" name="goal_type" value="manual">
                 <label>Goal name<input type="text" name="title" placeholder="What would you like to achieve?" required></label>
                 <div class="goal-form-grid">

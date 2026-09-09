@@ -13,7 +13,7 @@
 
         <main class="dashboard-main">
             <header class="dashboard-topbar">
-                <a class="text-button" href="{{ url_for('semester') }}">← Back to courses</a>
+                <a class="text-button" href="{{ url_for('courses.semester') }}">← Back to courses</a>
             </header>
 
             <section class="timetable-import-content">
@@ -46,7 +46,7 @@
                         
                         <span>Results may vary. Check all course codes and class times before saving.</span>
                     </div>
-                    <form method="POST" action="{{ url_for('confirm_timetable_import') }}" id="timetable-confirm-form">
+                    <form method="POST" action="{{ url_for('imports.confirm_timetable_import') }}" id="timetable-confirm-form">
                         <div class="timetable-review-list" id="timetable-review-list"></div>
                         <div class="timetable-review-actions">
                             <button type="button" class="secondary-button" id="add-import-row">＋ Add another course</button>

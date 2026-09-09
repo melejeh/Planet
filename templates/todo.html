@@ -26,7 +26,7 @@
     <form
         class="todo-search-form"
         method="GET"
-        action="{{ url_for('todo') }}"
+        action="{{ url_for('tasks.todo') }}"
     >
         <input
             type="hidden"
@@ -89,7 +89,7 @@
 
                     <form
                         method="POST"
-                        action="{{ url_for('todo') }}"
+                        action="{{ url_for('tasks.todo') }}"
                     >
                         <div class="task-form-grid">
                             <label class="task-title-field">
@@ -172,7 +172,7 @@
                 </section>
                 <nav class="todo-filters">
     <a
-        href="{{ url_for('todo', filter='all') }}"
+        href="{{ url_for('tasks.todo', filter='all') }}"
         class="{% if task_filter == 'all' %}active{% endif %}"
     >
         All
@@ -180,14 +180,14 @@
     </a>
 
     <a
-        href="{{ url_for('todo', filter='today') }}"
+        href="{{ url_for('tasks.todo', filter='today') }}"
         class="{% if task_filter == 'today' %}active{% endif %}"
     >
         Today
         <span>{{ task_counts["today_count"] or 0 }}</span>
     </a>
     <a
-    href="{{ url_for('todo', filter='overdue') }}"
+    href="{{ url_for('tasks.todo', filter='overdue') }}"
     class="
         overdue-filter
         {% if task_filter == 'overdue' %}
@@ -205,7 +205,7 @@
 </a>
 
     <a
-        href="{{ url_for('todo', filter='upcoming') }}"
+        href="{{ url_for('tasks.todo', filter='upcoming') }}"
         class="{% if task_filter == 'upcoming' %}active{% endif %}"
     >
         Upcoming
@@ -213,7 +213,7 @@
     </a>
 
     <a
-        href="{{ url_for('todo', filter='completed') }}"
+        href="{{ url_for('tasks.todo', filter='completed') }}"
         class="{% if task_filter == 'completed' %}active{% endif %}"
     >
         Completed
@@ -258,7 +258,7 @@
                                     <form
                                         method="POST"
                                         action="{{ url_for(
-                                            'toggle_task',
+                                            'tasks.toggle_task',
                                             task_id=task['id']
                                         ) }}"
                                     >
@@ -326,7 +326,7 @@
                                         <div class="task-actions">
                                             <a
     href="{{ url_for(
-        'edit_task',
+        'tasks.edit_task',
         task_id=task['id']
     ) }}"
     class="task-edit-link"
@@ -336,7 +336,7 @@
                                             <form
                                                 method="POST"
                                                 action="{{ url_for(
-                                                    'delete_task',
+                                                    'tasks.delete_task',
                                                     task_id=task['id']
                                                 ) }}"
                                                 onsubmit="

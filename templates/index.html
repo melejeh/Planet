@@ -34,6 +34,11 @@
                  {{ error }}
                 </div>
                 {% endif %}
+                {% if success %}
+                    <div class="form-success" role="status">
+                        {{ success }}
+                    </div>
+                {% endif %}
 
 
                 <form method="POST" action="/login">
@@ -63,6 +68,10 @@
         placeholder="Enter your password"
         required
     >
+
+    <a class="forgot-password-link" href="{{ url_for('auth.forgot_password') }}">
+        Forgot password?
+    </a>
 
     <button type="submit">Enter my planet</button>
 </form>
