@@ -250,6 +250,7 @@ def import_course_outline(course_id):
     assessments = []
     error = None
     warning = None
+    debug_info = None
     if request.method == "POST":
         extracted_text = request.form.get("extracted_text", "").strip()
         outline = request.files.get("course_outline")
@@ -258,11 +259,14 @@ def import_course_outline(course_id):
                 error = "That image contained too much text to review safely."
             else:
                 assessments = _course_outline_assessments(extracted_text)
+                preview = extracted_text[:2000].replace("\n", " | ")
+                debug_info = (
+                    "DEBUG — extracted text (" + str(len(extracted_text)) + " chars, "
+                    + str(len(assessments)) + " rows found): " + preview
+                )
                 if not assessments:
-                    preview = extracted_text[:1500].replace("\n", " | ")
                     error = (
-                        "DEBUG — extracted text (" + str(len(extracted_text)) + " chars): "
-                        + preview
+                        debug_info
                         + " || Planet could not find assessment names and percentages. "
                         "You can add review rows manually."
                     )
@@ -300,6 +304,9 @@ def import_course_outline(course_id):
                 "Planet found an unusually large number of assessment rows. "
                 "Review them carefully before importing."
             )
+
+    if debug_info and not error:
+        warning = debug_info + " || " + (warning or "(no other warning)")
 
     return render_template(
         "import_course_outline.html",
