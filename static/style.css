@@ -2393,14 +2393,15 @@ form button:hover {
 
 .assessment-list {
     margin-top: 28px;
+    overflow-x: auto;
 }
 
 .assessment-list-header,
 .assessment-row {
     display: grid;
     grid-template-columns:
-        minmax(220px, 2fr) minmax(120px, 0.85fr) minmax(65px, 0.4fr) minmax(65px, 0.4fr) auto;
-    gap: 22px;
+        minmax(190px, 2fr) minmax(120px, 0.85fr) minmax(60px, 0.4fr) minmax(60px, 0.4fr) auto;
+    gap: 16px;
     align-items: center;
 }
 
