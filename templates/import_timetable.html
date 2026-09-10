@@ -304,7 +304,20 @@
                 await worker.terminate();
                 URL.revokeObjectURL(imageUrl);
                 const courses = parseTimetable(result.data.lines || [], image.naturalWidth, processedTimetable.gridStart);
-                if (!courses.length) throw new Error("Planet could not confidently find course codes. Try a clearer screenshot or add the courses in the review manually.");
+                if (!courses.length) {
+                    const rawLineCount = (result.data.lines || []).length;
+                    const sampleLines = (result.data.lines || [])
+                        .slice(0, 8)
+                        .map(l => JSON.stringify(l.text))
+                        .join(", ");
+                    throw new Error(
+                        "DEBUG — image " + image.naturalWidth + "x" + image.naturalHeight +
+                        " | gridStart " + Math.round(processedTimetable.gridStart) +
+                        " | OCR lines found: " + rawLineCount +
+                        " | sample text: " + sampleLines +
+                        " || Planet could not confidently find course codes. Try a clearer screenshot or add the courses in the review manually."
+                    );
+                }
                 courses.forEach(addCourseRow);
                 reviewCard.hidden = false;
                 reviewCard.scrollIntoView({behavior: "smooth", block: "start"});
