@@ -209,6 +209,11 @@ def study_plan():
                 "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
         }
 
+    _reschedule_missed_sessions(
+        connection, user_id, settings, _get_user_settings(connection, user_id),
+        planet_now()
+    )
+
     selected_days = settings["available_days"].split(",")
 
     active_semester_id = session.get(
@@ -459,6 +464,219 @@ def _minutes_to_time(value):
     return f"{value // 60:02d}:{value % 60:02d}"
 
 
+def _get_user_settings(connection, user_id):
+    """Fetch the reschedule/grade-priority toggles from user_settings,
+    defaulting to enabled (matching the table's own column defaults) for a
+    user who has never saved a Settings form yet."""
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER PRIMARY KEY,
+            reschedule_missed INTEGER NOT NULL DEFAULT 1,
+            grade_priority INTEGER NOT NULL DEFAULT 1,
+            allow_weekends INTEGER NOT NULL DEFAULT 1,
+            theme TEXT NOT NULL DEFAULT 'editorial',
+            compact_dashboard INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+        """
+    )
+    row = connection.execute(
+        "SELECT reschedule_missed, grade_priority FROM user_settings WHERE user_id = ?",
+        (user_id,)
+    ).fetchone()
+    if row is None:
+        return {"reschedule_missed": 1, "grade_priority": 1}
+    return {
+        "reschedule_missed": row["reschedule_missed"],
+        "grade_priority": row["grade_priority"]
+    }
+
+
+def _course_grade_boosts(connection, user_id, active_semester_id):
+    """When 'Use grade targets to prioritize courses' is on, courses sitting
+    further below a strong grade get a bigger priority boost. Courses with
+    nothing graded yet get no boost -- there's no signal yet that they need
+    extra attention."""
+    rows = connection.execute(
+        """
+        SELECT
+            courses.id AS course_id,
+            ROUND(
+                CAST(SUM(
+                    CASE WHEN assessments.score IS NOT NULL
+                         THEN assessments.score * assessments.weight
+                         ELSE 0 END
+                ) AS REAL)
+                / NULLIF(SUM(
+                    CASE WHEN assessments.score IS NOT NULL
+                         THEN assessments.weight ELSE 0 END
+                ), 0),
+                1
+            ) AS current_grade
+        FROM courses
+        JOIN semesters ON semesters.id = courses.semester_id
+        LEFT JOIN assessments ON assessments.course_id = courses.id
+        WHERE semesters.user_id = ? AND courses.semester_id = ?
+        GROUP BY courses.id
+        """,
+        (user_id, active_semester_id)
+    ).fetchall()
+
+    boosts = {}
+    for row in rows:
+        if row["current_grade"] is None:
+            boosts[row["course_id"]] = 0
+        else:
+            # 90%+ -> no boost. Roughly one extra point for every 10 points
+            # below 90, capped so a struggling course still shares the week
+            # with everything else rather than eating the whole plan.
+            boosts[row["course_id"]] = max(
+                0, min(4, round((90 - row["current_grade"]) / 10))
+            )
+    return boosts
+
+
+def _find_next_slot(day, cursor, latest, session_minutes, remaining_minutes, occupied):
+    """Find the next open, non-conflicting slot on `day` at or after
+    `cursor`. Returns (start, end) in minutes-since-midnight, or None if the
+    day has no more room before `latest` (or the budget is spent)."""
+    slot_start = cursor
+    while slot_start + session_minutes <= latest and remaining_minutes > 0:
+        slot_end = slot_start + min(session_minutes, remaining_minutes)
+        conflicts = any(
+            slot_start < busy_end and slot_end > busy_start
+            for busy_start, busy_end in occupied.get(day.isoformat(), [])
+        )
+        if conflicts:
+            slot_start += 15
+            continue
+        return slot_start, slot_end
+    return None
+
+
+def _reschedule_missed_sessions(connection, user_id, settings, user_settings, now):
+    """Any 'planned' session whose time has already passed becomes 'missed'.
+    If the user has 'Reschedule missed study blocks' turned on, immediately
+    try to book a fresh slot for it later in the current 7-day window."""
+    today = now.date()
+    current_time_str = now.strftime("%H:%M")
+
+    overdue = connection.execute(
+        """
+        SELECT * FROM study_blocks
+        WHERE user_id = ? AND status = 'planned'
+          AND (scheduled_date < ?
+               OR (scheduled_date = ? AND end_time <= ?))
+        """,
+        (user_id, today.isoformat(), today.isoformat(), current_time_str)
+    ).fetchall()
+
+    if not overdue:
+        return
+
+    connection.execute(
+        """
+        UPDATE study_blocks SET status = 'missed'
+        WHERE user_id = ? AND status = 'planned'
+          AND (scheduled_date < ?
+               OR (scheduled_date = ? AND end_time <= ?))
+        """,
+        (user_id, today.isoformat(), today.isoformat(), current_time_str)
+    )
+
+    if not user_settings["reschedule_missed"]:
+        connection.commit()
+        return
+
+    window_end = today + timedelta(days=6)
+    active_blocks = connection.execute(
+        """
+        SELECT scheduled_date, start_time, end_time FROM study_blocks
+        WHERE user_id = ? AND scheduled_date BETWEEN ? AND ?
+          AND status IN ('planned', 'completed')
+        """,
+        (user_id, today.isoformat(), window_end.isoformat())
+    ).fetchall()
+    calendar_events = connection.execute(
+        """
+        SELECT event_date AS scheduled_date, start_time, end_time FROM events
+        WHERE user_id = ? AND event_date BETWEEN ? AND ?
+        """,
+        (user_id, today.isoformat(), window_end.isoformat())
+    ).fetchall()
+
+    occupied = {}
+    for item in list(active_blocks) + list(calendar_events):
+        try:
+            start = _time_to_minutes(item["start_time"])
+            end = _time_to_minutes(item["end_time"])
+        except (TypeError, ValueError):
+            continue
+        occupied.setdefault(item["scheduled_date"], []).append((start, end))
+
+    earliest = _time_to_minutes(settings["earliest_time"])
+    latest = _time_to_minutes(settings["latest_time"])
+    available_days = {
+        day.strip().lower()
+        for day in settings["available_days"].split(",")
+        if day.strip()
+    }
+    if not settings["include_weekends"]:
+        available_days -= {"saturday", "sunday"}
+
+    candidate_days = [
+        today + timedelta(days=d) for d in range(7)
+        if (today + timedelta(days=d)).strftime("%A").lower() in available_days
+    ]
+
+    for block in overdue:
+        session_minutes = _time_to_minutes(block["end_time"]) - _time_to_minutes(block["start_time"])
+        if session_minutes <= 0:
+            continue
+
+        placed = False
+        for day in candidate_days:
+            day_start = earliest
+            if day == today:
+                current_minutes = now.hour * 60 + now.minute
+                day_start = max(day_start, ((current_minutes + 14) // 15) * 15)
+
+            slot = _find_next_slot(
+                day, day_start, latest, session_minutes,
+                session_minutes, occupied
+            )
+            if slot is None:
+                continue
+
+            slot_start, slot_end = slot
+            connection.execute(
+                """
+                INSERT INTO study_blocks (
+                    user_id, course_id, assessment_id, title, notes,
+                    scheduled_date, start_time, end_time, status, source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'planned', ?)
+                """,
+                (
+                    user_id, block["course_id"], block["assessment_id"],
+                    block["title"], block["notes"],
+                    day.isoformat(),
+                    _minutes_to_time(slot_start),
+                    _minutes_to_time(slot_end),
+                    block["source"] or "rescheduled"
+                )
+            )
+            occupied.setdefault(day.isoformat(), []).append((slot_start, slot_end))
+            placed = True
+            break
+
+        # If no open slot was found anywhere in the window, the session
+        # simply stays 'missed' -- nothing more Planet can safely do without
+        # a spot that respects the user's own availability.
+        del placed
+
+    connection.commit()
+
 
 @study_plan_bp.route("/study-plan/generate", methods=["POST"])
 def generate_study_plan():
@@ -554,6 +772,13 @@ def generate_study_plan():
         ).fetchall()
 
     # If no assessments are selected, Planet balances sessions by course.
+    user_settings = _get_user_settings(connection, user_id)
+    grade_boosts = (
+        _course_grade_boosts(connection, user_id, active_semester_id)
+        if user_settings["grade_priority"]
+        else {}
+    )
+
     plan_targets = []
     for assessment in assessments:
         due_date = datetime.strptime(
@@ -570,13 +795,18 @@ def generate_study_plan():
             assessment_weight = 0.0
         weight_points = max(1, min(5, round(assessment_weight / 10)))
 
+        # "Use grade targets to prioritize courses": a course sitting well
+        # below a strong grade gets extra priority points on top of the
+        # usual urgency/weight scoring.
+        grade_boost = grade_boosts.get(assessment["course_id"], 0)
+
         plan_targets.append({
             "course_id": assessment["course_id"],
             "assessment_id": assessment["id"],
             "title": f"Study for {assessment['name']}",
             "notes": f"Priority session for {assessment['course_code']}.",
             "due_date": assessment["due_date"],
-            "priority_score": urgency_points + weight_points
+            "priority_score": urgency_points + weight_points + grade_boost
         })
 
     if not plan_targets:
@@ -586,7 +816,8 @@ def generate_study_plan():
                 "assessment_id": None,
                 "title": f"{course['code']} study session",
                 "notes": f"Focused study time for {course['name']}.",
-                "due_date": None
+                "due_date": None,
+                "priority_score": 1 + grade_boosts.get(course["id"], 0)
             })
 
     existing_blocks = connection.execute(
@@ -643,43 +874,51 @@ def generate_study_plan():
     if not settings["include_weekends"]:
         available_days -= {"saturday", "sunday"}
 
+    def _target_key(target):
+        return (
+            ("assessment", target["assessment_id"])
+            if target["assessment_id"] is not None
+            else ("course", target["course_id"])
+        )
+
     generated = []
-    target_index = 0
-    target_session_counts = {
-        target["assessment_id"]: 0
-        for target in plan_targets
-        if target["assessment_id"] is not None
-    }
+    target_session_counts = {_target_key(target): 0 for target in plan_targets}
     now = planet_now()
 
-    for day_offset in range(7):
-        if remaining_minutes <= 0:
-            break
+    available_dates = [
+        today + timedelta(days=d) for d in range(7)
+        if (today + timedelta(days=d)).strftime("%A").lower() in available_days
+    ]
 
-        study_date = today + timedelta(days=day_offset)
-        if study_date.strftime("%A").lower() not in available_days:
-            continue
-
+    day_cursors = {}
+    for study_date in available_dates:
         slot_start = earliest
         if study_date == today:
             current_minutes = now.hour * 60 + now.minute
-            slot_start = max(
-                slot_start,
-                ((current_minutes + 14) // 15) * 15
-            )
+            slot_start = max(slot_start, ((current_minutes + 14) // 15) * 15)
+        day_cursors[study_date] = slot_start
 
-        while slot_start + session_minutes <= latest and remaining_minutes > 0:
-            slot_end = slot_start + min(session_minutes, remaining_minutes)
-            conflicts = any(
-                slot_start < busy_end and slot_end > busy_start
-                for busy_start, busy_end in occupied.get(
-                    study_date.isoformat(), []
-                )
-            )
+    # Spread sessions round-robin across the available days instead of
+    # filling one day completely before moving to the next: each pass tries
+    # to give every day that still has room one more session, so a full
+    # weekly target doesn't all land on the very first available day.
+    active_dates = list(available_dates)
+    while remaining_minutes > 0 and active_dates:
+        made_progress = False
 
-            if conflicts:
-                slot_start += 15
+        for study_date in list(active_dates):
+            if remaining_minutes <= 0:
+                break
+
+            slot = _find_next_slot(
+                study_date, day_cursors[study_date], latest,
+                session_minutes, remaining_minutes, occupied
+            )
+            if slot is None:
+                active_dates.remove(study_date)
                 continue
+
+            slot_start, slot_end = slot
 
             eligible_targets = [
                 target for target in plan_targets
@@ -687,31 +926,28 @@ def generate_study_plan():
                 or study_date.isoformat() <= target["due_date"]
             ]
             if not eligible_targets:
-                slot_start += 15
+                active_dates.remove(study_date)
                 continue
 
-            if assessments:
-                # A target's effective score falls each time it receives a
-                # session. This creates a weighted, fair rotation: urgent and
-                # high-value assessments receive more sessions, while every
-                # selected deadline can still receive study time.
-                target = max(
-                    eligible_targets,
-                    key=lambda item: (
-                        item["priority_score"]
-                        / (
-                            target_session_counts[item["assessment_id"]] + 1
-                        ),
+            # A target's effective score falls each time it receives a
+            # session. This creates a weighted, fair rotation: urgent,
+            # high-value, and (if enabled) grade-struggling targets receive
+            # more sessions, while everything eligible still gets a turn.
+            target = max(
+                eligible_targets,
+                key=lambda item: (
+                    item["priority_score"]
+                    / (target_session_counts[_target_key(item)] + 1),
+                    (
                         -datetime.strptime(
                             item["due_date"], "%Y-%m-%d"
-                        ).date().toordinal(),
-                        item["priority_score"]
-                    )
+                        ).date().toordinal()
+                        if item["due_date"] else 0
+                    ),
+                    item["priority_score"]
                 )
-                target_session_counts[target["assessment_id"]] += 1
-            else:
-                target = eligible_targets[target_index % len(eligible_targets)]
-                target_index += 1
+            )
+            target_session_counts[_target_key(target)] += 1
 
             connection.execute(
                 """
@@ -736,7 +972,11 @@ def generate_study_plan():
                 (slot_start, slot_end)
             )
             remaining_minutes -= slot_end - slot_start
-            slot_start = slot_end + break_minutes
+            day_cursors[study_date] = slot_end + break_minutes
+            made_progress = True
+
+        if not made_progress:
+            break
 
     connection.commit()
 
