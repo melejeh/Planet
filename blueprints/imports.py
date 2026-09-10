@@ -179,7 +179,20 @@ def _course_outline_assessments(text):
     # weights, pair them up positionally rather than requiring strict
     # adjacency, which recovers rows the sequential matching below would
     # otherwise silently drop.
-    name_lines = [l for l in lines if likely_assessment(l) and "%" not in l]
+    # A bare column header (just the word "Lab", "Quiz", "Test", etc. with
+    # nothing else) trivially contains an assessment term too, but it's a
+    # table header, not a real assessment name -- exclude exact matches to
+    # these so they don't inflate the name count below.
+    generic_header_words = {
+        "lab", "labs", "assignment", "assignments", "quiz", "quizzes",
+        "test", "tests", "exam", "exams", "assessment", "assessments",
+        "activity", "activities", "component", "components"
+    }
+    name_lines = [
+        l for l in lines
+        if likely_assessment(l) and "%" not in l
+        and l.strip().lower() not in generic_header_words
+    ]
     weight_line_pattern = re.compile(
         r"^(\d+(?:\.\d+)?)\s*%\s*(?:/\s*(\d+(?:\.\d+)?)\s*%)?$"
     )
@@ -273,7 +286,6 @@ def import_course_outline(course_id):
     assessments = []
     error = None
     warning = None
-    debug_info = None
     if request.method == "POST":
         extracted_text = request.form.get("extracted_text", "").strip()
         outline = request.files.get("course_outline")
@@ -282,17 +294,8 @@ def import_course_outline(course_id):
                 error = "That image contained too much text to review safely."
             else:
                 assessments = _course_outline_assessments(extracted_text)
-                preview = extracted_text[:2000].replace("\n", " | ")
-                debug_info = (
-                    "DEBUG — extracted text (" + str(len(extracted_text)) + " chars, "
-                    + str(len(assessments)) + " rows found): " + preview
-                )
                 if not assessments:
-                    error = (
-                        debug_info
-                        + " || Planet could not find assessment names and percentages. "
-                        "You can add review rows manually."
-                    )
+                    error = "Planet could not find assessment names and percentages. You can add review rows manually."
         elif not outline or not outline.filename:
             error = "Choose a PDF or screenshot of the evaluation section first."
         elif not outline.filename.lower().endswith(".pdf"):
@@ -327,9 +330,6 @@ def import_course_outline(course_id):
                 "Planet found an unusually large number of assessment rows. "
                 "Review them carefully before importing."
             )
-
-    if debug_info and not error:
-        warning = debug_info + " || " + (warning or "(no other warning)")
 
     return render_template(
         "import_course_outline.html",
