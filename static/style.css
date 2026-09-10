@@ -65,7 +65,8 @@ html[data-theme]:not([data-theme="editorial"]) .dashboard-body { background-colo
 .settings-toggle-row input:checked + i { background: var(--berry); }
 .settings-toggle-row input:checked + i::after { transform: translateX(21px); }
 .settings-field-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 24px; }
-.settings-field-grid label { display: grid; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.settings-field-grid label { display: grid; grid-template-rows: auto auto 1fr; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.settings-field-grid label input { grid-row: 3; align-self: end; }
 .settings-field-grid label span { color: var(--muted); font-weight: 500; }
 .settings-field-grid input { width: 100%; height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 11px; background: white; color: var(--ink); font: inherit; }
 .settings-days { margin: 24px 0 0; padding: 0; border: 0; }
@@ -6982,4 +6983,7 @@ body.dashboard-body {
 
 .delete-account-button:hover {
     background-color: #a93226;
+}
+@media (max-width: 1100px) {
+    .semester-form-fields { grid-template-columns: 1fr 1fr; }
 }
