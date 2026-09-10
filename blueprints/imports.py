@@ -99,7 +99,7 @@ def confirm_timetable_import():
 
 
 
-def _course_outline_assessments(text):
+def _course_outline_assessments(text, semester_start=None, semester_end=None):
     """Extract reviewable assessment rows from a plain-text course outline."""
     rows = []
     assessment_terms = (
@@ -208,39 +208,38 @@ def _course_outline_assessments(text):
                 "alternative_weight": weight_match.group(2) or "",
                 "due_date": ""
             })
-        return rows
-
-    pending_name = None
-    for line in lines:
-        match = re.match(
-            r"(.+?)\s+(\d+(?:\.\d+)?)\s*%\s*(?:/\s*(\d+(?:\.\d+)?)\s*%)?",
-            line
-        )
-        if not match:
-            standalone_weight = weight_line_pattern.match(line)
-            if standalone_weight and pending_name and likely_assessment(pending_name):
-                rows.append({
-                    "name": pending_name,
-                    "weight": standalone_weight.group(1),
-                    "alternative_weight": standalone_weight.group(2) or "",
-                    "due_date": ""
-                })
-                pending_name = None
-            elif "%" not in line and line.lower() not in {
-                "course component", "weight", "ceab gas assessed"
-            }:
-                pending_name = re.sub(r"\s+\)", ")", line.strip(" :-"))
-            continue
-        name = re.sub(r"\s+\)", ")", match.group(1).strip(" :-"))
-        if name.lower() in {"course component", "weight"} or not likely_assessment(name):
-            continue
-        rows.append({
-            "name": name,
-            "weight": match.group(2),
-            "alternative_weight": match.group(3) or "",
-            "due_date": ""
-        })
+    else:
         pending_name = None
+        for line in lines:
+            match = re.match(
+                r"(.+?)\s+(\d+(?:\.\d+)?)\s*%\s*(?:/\s*(\d+(?:\.\d+)?)\s*%)?",
+                line
+            )
+            if not match:
+                standalone_weight = weight_line_pattern.match(line)
+                if standalone_weight and pending_name and likely_assessment(pending_name):
+                    rows.append({
+                        "name": pending_name,
+                        "weight": standalone_weight.group(1),
+                        "alternative_weight": standalone_weight.group(2) or "",
+                        "due_date": ""
+                    })
+                    pending_name = None
+                elif "%" not in line and line.lower() not in {
+                    "course component", "weight", "ceab gas assessed"
+                }:
+                    pending_name = re.sub(r"\s+\)", ")", line.strip(" :-"))
+                continue
+            name = re.sub(r"\s+\)", ")", match.group(1).strip(" :-"))
+            if name.lower() in {"course component", "weight"} or not likely_assessment(name):
+                continue
+            rows.append({
+                "name": name,
+                "weight": match.group(2),
+                "alternative_weight": match.group(3) or "",
+                "due_date": ""
+            })
+            pending_name = None
 
     month_names = (
         "January|February|March|April|May|June|July|August|"
@@ -262,6 +261,80 @@ def _course_outline_assessments(text):
                     row["due_date"] = parsed_date
         except ValueError:
             pass
+
+    # Some outlines lay assessments out as a table with several date
+    # columns (e.g. "Assigned | Due Date | Demonstrate by"), each on its
+    # own line once OCR or PDF extraction linearizes it. Match each row's
+    # date at the same column position as wherever the header said "due".
+    if rows and any(row["due_date"] == "" for row in rows) and semester_start and semester_end:
+        month_lookup = {
+            "january": 1, "jan": 1, "february": 2, "feb": 2, "march": 3, "mar": 3,
+            "april": 4, "apr": 4, "may": 5, "june": 6, "jun": 6, "july": 7, "jul": 7,
+            "august": 8, "aug": 8, "september": 9, "sep": 9, "sept": 9,
+            "october": 10, "oct": 10, "november": 11, "nov": 11,
+            "december": 12, "dec": 12
+        }
+        date_line_pattern = re.compile(r"^([A-Za-z]+)\.?\s+(\d{1,2})\.?,?$")
+        date_header_words = {
+            "assigned", "due date", "due", "demonstrate by", "demonstrate",
+            "date", "submission date", "submit by", "release date", "posted"
+        }
+
+        header_date_labels = []
+        for line in lines:
+            lowered = line.strip().lower()
+            if lowered in date_header_words:
+                header_date_labels.append(lowered)
+            elif header_date_labels:
+                break
+
+        due_date_index = next(
+            (i for i, label in enumerate(header_date_labels) if "due" in label),
+            None
+        )
+
+        if due_date_index is not None:
+            row_starts = []
+            name_to_row = {}
+            for row in rows:
+                for i, line in enumerate(lines):
+                    if line.strip() == row["name"].strip():
+                        row_starts.append(i)
+                        name_to_row[i] = row
+                        break
+            row_starts.sort()
+
+            for idx, start in enumerate(row_starts):
+                end = row_starts[idx + 1] if idx + 1 < len(row_starts) else len(lines)
+                target_row = name_to_row[start]
+                if target_row["due_date"]:
+                    continue
+
+                date_values = []
+                for line in lines[start + 1:end]:
+                    match = date_line_pattern.match(line.strip())
+                    if match and match.group(1).lower() in month_lookup:
+                        date_values.append((
+                            month_lookup[match.group(1).lower()],
+                            int(match.group(2))
+                        ))
+
+                if due_date_index >= len(date_values):
+                    continue
+
+                month, day = date_values[due_date_index]
+                resolved = None
+                for year in {semester_start.year, semester_end.year}:
+                    try:
+                        candidate = datetime(year, month, day).date()
+                    except ValueError:
+                        continue
+                    if semester_start <= candidate <= semester_end:
+                        resolved = candidate
+                        break
+                if resolved:
+                    target_row["due_date"] = resolved.isoformat()
+
     return rows
 
 
@@ -274,7 +347,9 @@ def import_course_outline(course_id):
     connection = get_db()
     course = connection.execute(
         """
-        SELECT courses.* FROM courses
+        SELECT courses.*, semesters.start_date AS semester_start,
+               semesters.end_date AS semester_end
+        FROM courses
         JOIN semesters ON semesters.id = courses.semester_id
         WHERE courses.id = ? AND semesters.user_id = ?
         """,
@@ -282,6 +357,20 @@ def import_course_outline(course_id):
     ).fetchone()
     if course is None:
         return redirect(url_for("courses.semester"))
+
+    semester_start = None
+    semester_end = None
+    try:
+        if course["semester_start"] and course["semester_end"]:
+            semester_start = datetime.strptime(
+                course["semester_start"], "%Y-%m-%d"
+            ).date()
+            semester_end = datetime.strptime(
+                course["semester_end"], "%Y-%m-%d"
+            ).date()
+    except (TypeError, ValueError):
+        semester_start = None
+        semester_end = None
 
     assessments = []
     error = None
@@ -293,7 +382,9 @@ def import_course_outline(course_id):
             if len(extracted_text) > 100000:
                 error = "That image contained too much text to review safely."
             else:
-                assessments = _course_outline_assessments(extracted_text)
+                assessments = _course_outline_assessments(
+                    extracted_text, semester_start, semester_end
+                )
                 if not assessments:
                     error = "Planet could not find assessment names and percentages. You can add review rows manually."
         elif not outline or not outline.filename:
@@ -309,7 +400,9 @@ def import_course_outline(course_id):
                     from pypdf import PdfReader
                     reader = PdfReader(BytesIO(contents))
                     text = "\n".join(page.extract_text() or "" for page in reader.pages)
-                    assessments = _course_outline_assessments(text)
+                    assessments = _course_outline_assessments(
+                        text, semester_start, semester_end
+                    )
                     if not assessments:
                         error = "Planet could not find an evaluation table. You can add review rows manually."
                 except Exception:
