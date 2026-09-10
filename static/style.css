@@ -6937,3 +6937,49 @@ body.dashboard-body {
 
 }
 }
+.danger-zone {
+    margin-top: 40px;
+    padding: 24px;
+    background-color: var(--card-background, #ffffff);
+    border: 1px solid var(--theme-color);
+    border-radius: 14px;
+}
+
+.danger-zone h3 {
+    margin-top: 0;
+    color: var(--theme-color);
+}
+
+.danger-zone p {
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+.danger-zone form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.danger-zone input {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+}
+
+.delete-account-button {
+    align-self: flex-start;
+    margin-top: 6px;
+    padding: 10px 16px;
+    background-color: #c0392b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.delete-account-button:hover {
+    background-color: #a93226;
+}

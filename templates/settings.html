@@ -192,6 +192,20 @@
                         <p class="quick-links-settings-empty">No quick links yet. Add your student portal, learning site, email or library.</p>
                     {% endif %}
                 </section>
+
+                <section class="settings-card danger-zone" id="danger-zone" data-settings-section>
+                    <div class="settings-card-heading">
+                        <div><p class="eyebrow">DANGER ZONE</p><h2>Delete your account</h2></div>
+                        <span>This can't be undone</span>
+                    </div>
+                    <p>Deleting your account permanently removes all your courses, tasks, goals, calendar events, and everything else.</p>
+                    <form action="{{ url_for('settings.delete_account') }}" method="POST"
+                          onsubmit="return confirm('Are you sure? This permanently deletes your account and all your data.');">
+                        <label for="delete-password">Confirm your password</label>
+                        <input type="password" id="delete-password" name="password" required>
+                        <button type="submit" class="delete-account-button">Delete my account</button>
+                    </form>
+                </section>
             </section>
         </main>
     </div>

@@ -401,3 +401,65 @@ def delete_quick_link(link_id):
         return {"success": True}
 
     return redirect(url_for("settings.settings", saved="Quick link removed.") + "#quick-links")
+
+
+@settings_bp.route("/settings/delete-account", methods=["POST"])
+def delete_account():
+    if "user_id" not in session:
+        return redirect(url_for("core.home"))
+
+    user_id = session["user_id"]
+    password = request.form.get("password", "")
+
+    connection = get_db()
+    user = connection.execute(
+        "SELECT password_hash FROM users WHERE id = ?",
+        (user_id,)
+    ).fetchone()
+
+    if user is None or not check_password_hash(user["password_hash"], password):
+        return redirect(url_for(
+            "settings.settings",
+            error="Incorrect password. Your account was not deleted."
+        ) + "#danger-zone")
+
+    # Delete children before parents so nothing is left orphaned.
+    connection.execute(
+        """
+        DELETE FROM assessments
+        WHERE course_id IN (
+            SELECT courses.id FROM courses
+            JOIN semesters ON courses.semester_id = semesters.id
+            WHERE semesters.user_id = ?
+        )
+        """,
+        (user_id,)
+    )
+    connection.execute(
+        """
+        DELETE FROM courses
+        WHERE semester_id IN (
+            SELECT id FROM semesters WHERE user_id = ?
+        )
+        """,
+        (user_id,)
+    )
+    connection.execute("DELETE FROM semesters WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM goal_progress_logs WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM goals WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM tasks WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM events WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM gratitude_entries WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM quick_links WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM study_blocks WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM study_plan_settings WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM user_settings WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM focus_sessions WHERE user_id = ?", (user_id,))
+    connection.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    connection.commit()
+
+    session.clear()
+    return render_template(
+        "index.html",
+        success="Your Planet account and all its data have been deleted."
+    )
