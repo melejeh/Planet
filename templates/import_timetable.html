@@ -172,7 +172,13 @@
                     const x0 = Math.max(gridStart, centreX - columnWidth * 0.48);
                     const x1 = Math.min(source.width - 1, centreX + columnWidth * 0.48);
                     const samples = [];
-                    for (let y = y0 + sampleInset; y < Math.min(y0 + sampleWindowY, y1); y += 1) {
+                    // Sample near the BOTTOM of the block rather than the top: course
+                    // code, meeting type, and time text all cluster near the top of
+                    // each block, so the bottom edge is far more likely to be clean
+                    // fill colour rather than text pixels.
+                    const sampleBottom = Math.max(y0, y1 - sampleInset);
+                    const sampleTop = Math.max(y0, sampleBottom - sampleWindowY);
+                    for (let y = sampleTop; y < sampleBottom; y += 1) {
                         for (let x = x0 + sampleInset; x < Math.min(x0 + sampleWindowX, x1); x += 1) samples.push(pixelAt(x, y));
                     }
                     samples.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
