@@ -112,17 +112,14 @@
             const sourceContext = source.getContext("2d", {willReadFrequently: true});
             sourceContext.drawImage(image, 0, 0);
             const sourcePixels = sourceContext.getImageData(0, 0, source.width, source.height);
-            const output = document.createElement("canvas");
-            output.width = source.width;
-            output.height = source.height;
-            const outputContext = output.getContext("2d");
-            outputContext.fillStyle = "white";
-            outputContext.fillRect(0, 0, output.width, output.height);
-            const processed = outputContext.getImageData(0, 0, output.width, output.height);
             const pixelAt = (x, y) => {
                 const offset = (Math.floor(y) * source.width + Math.floor(x)) * 4;
                 return [sourcePixels.data[offset], sourcePixels.data[offset + 1], sourcePixels.data[offset + 2]];
             };
+
+            // Detect where the day columns begin (used later to map detected
+            // text back to a weekday) by scanning for a long light grey
+            // vertical border in the expected range.
             let gridStart = source.width * 0.093;
             let strongestGridLine = -1;
             const gridScanStartY = Math.floor(source.height * 0.03);
@@ -137,69 +134,29 @@
                     gridStart = x;
                 }
             }
-            const columnWidth = (source.width - gridStart) / 5;
-            const minBlockHeight = Math.max(12, Math.floor(source.height * 0.017));
-            const columnScanStartY = Math.floor(source.height * 0.01);
-            const sampleInset = Math.max(3, Math.floor(columnWidth * 0.03));
-            const sampleWindowY = Math.max(sampleInset + 4, Math.floor(columnWidth * 0.1));
-            const sampleWindowX = Math.max(sampleInset + 5, Math.floor(columnWidth * 0.12));
 
-            for (let day = 0; day < 5; day += 1) {
-                const centreX = gridStart + columnWidth * (day + 0.5);
-                const scanX = Math.min(source.width - 1, centreX + columnWidth * 0.32);
-                const runs = [];
-                let runStart = null;
-                let previousColour = null;
-                for (let y = columnScanStartY; y < source.height; y += 1) {
-                    const [r, g, b] = pixelAt(scanX, y);
-                    const active = Math.max(r, g, b) - Math.min(r, g, b) > 18 && Math.min(r, g, b) < 245;
-                    const changedBlock = previousColour && Math.sqrt(
-                        ((r - previousColour[0]) ** 2) + ((g - previousColour[1]) ** 2) + ((b - previousColour[2]) ** 2)
-                    ) > 28;
-                    if (active && runStart === null) runStart = y;
-                    else if (active && runStart !== null && changedBlock && y - runStart > minBlockHeight) {
-                        runs.push([runStart, y - 1]);
-                        runStart = y;
-                    }
-                    if (!active && runStart !== null) {
-                        if (y - runStart > minBlockHeight) runs.push([runStart, y - 1]);
-                        runStart = null;
-                    }
-                    previousColour = active ? [r, g, b] : null;
-                }
-                if (runStart !== null && source.height - runStart > minBlockHeight) runs.push([runStart, source.height - 1]);
-
-                runs.forEach(([y0, y1]) => {
-                    const x0 = Math.max(gridStart, centreX - columnWidth * 0.48);
-                    const x1 = Math.min(source.width - 1, centreX + columnWidth * 0.48);
-                    const samples = [];
-                    // Sample near the BOTTOM of the block rather than the top: course
-                    // code, meeting type, and time text all cluster near the top of
-                    // each block, so the bottom edge is far more likely to be clean
-                    // fill colour rather than text pixels.
-                    const sampleBottom = Math.max(y0, y1 - sampleInset);
-                    const sampleTop = Math.max(y0, sampleBottom - sampleWindowY);
-                    for (let y = sampleTop; y < sampleBottom; y += 1) {
-                        for (let x = x0 + sampleInset; x < Math.min(x0 + sampleWindowX, x1); x += 1) samples.push(pixelAt(x, y));
-                    }
-                    samples.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
-                    const background = samples[Math.floor(samples.length / 2)] || [255, 255, 255];
-                    const backgroundLightness = (background[0] + background[1] + background[2]) / 3;
-                    for (let y = y0; y <= y1; y += 1) {
-                        for (let x = Math.floor(x0); x <= Math.floor(x1); x += 1) {
-                            const colour = pixelAt(x, y);
-                            const distance = Math.sqrt(colour.reduce((total, channel, index) => total + ((channel - background[index]) ** 2), 0));
-                            const lightness = (colour[0] + colour[1] + colour[2]) / 3;
-                            if (distance > 45 || lightness < backgroundLightness - 32) {
-                                const offset = (y * output.width + x) * 4;
-                                processed.data[offset] = 0;
-                                processed.data[offset + 1] = 0;
-                                processed.data[offset + 2] = 0;
-                                processed.data[offset + 3] = 255;
-                            }
-                        }
-                    }
-                });
+            // Convert the whole image to a high-contrast greyscale instead of
+            // trying to hand-classify each course block's own fill colour.
+            // Dark pixels (any text, regardless of what colour is behind it)
+            // stay dark; anything lighter is pushed toward white. This lets
+            // Tesseract's own thresholding do the rest, and avoids the
+            // previous approach's failure mode of turning an entire block
+            // solid black when its background colour was misjudged.
+            const output = document.createElement("canvas");
+            output.width = source.width;
+            output.height = source.height;
+            const outputContext = output.getContext("2d");
+            const processed = outputContext.createImageData(source.width, source.height);
+            for (let i = 0; i < sourcePixels.data.length; i += 4) {
+                const r = sourcePixels.data[i];
+                const g = sourcePixels.data[i + 1];
+                const b = sourcePixels.data[i + 2];
+                const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+                const boosted = luminance > 150 ? 255 : Math.min(255, Math.max(0, luminance - 40) * 1.6);
+                processed.data[i] = boosted;
+                processed.data[i + 1] = boosted;
+                processed.data[i + 2] = boosted;
+                processed.data[i + 3] = 255;
             }
             outputContext.putImageData(processed, 0, 0);
             return {canvas: output, gridStart};
@@ -335,7 +292,7 @@
                         .map(l => JSON.stringify(l.text))
                         .join(", ");
                     throw new Error(
-                        "DEBUG v3 — image " + image.naturalWidth + "x" + image.naturalHeight +
+                        "DEBUG v4 — image " + image.naturalWidth + "x" + image.naturalHeight +
                         " | gridStart " + Math.round(processedTimetable.gridStart) +
                         " | OCR lines found: " + rawLineCount +
                         " | sample text: " + sampleLines +
