@@ -2400,7 +2400,7 @@ form button:hover {
 .assessment-row {
     display: grid;
     grid-template-columns:
-        minmax(190px, 2fr) minmax(120px, 0.85fr) minmax(60px, 0.4fr) minmax(60px, 0.4fr) auto;
+        minmax(190px, 1fr) minmax(120px, 160px) minmax(60px, 90px) minmax(60px, 90px) auto;
     gap: 16px;
     align-items: center;
 }
