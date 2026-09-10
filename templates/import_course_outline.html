@@ -145,7 +145,7 @@
                         }
                     }
                 });
-                await worker.setParameters({tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK});
+                await worker.setParameters({tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT});
                 const result = await worker.recognize(file);
                 await worker.terminate();
                 extractedText.value = result.data.text || "";

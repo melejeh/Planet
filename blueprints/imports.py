@@ -159,6 +159,15 @@ def _course_outline_assessments(text):
         r"\1\n",
         evaluation_text
     )
+
+    # Some outlines wrap the percentage in brackets, e.g. "Assignment 1 [5%]".
+    # Strip the bracket (even if OCR dropped the closing one) so the normal
+    # "name  weight%" matching below can handle it the same as everything else.
+    evaluation_text = re.sub(
+        r"\[\s*(\d+(?:\.\d+)?\s*%)\]?",
+        r"\1",
+        evaluation_text
+    )
     pending_name = None
     for raw_line in evaluation_text.splitlines():
         line = " ".join(raw_line.split())
