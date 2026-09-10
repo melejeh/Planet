@@ -124,9 +124,10 @@
             };
             let gridStart = source.width * 0.093;
             let strongestGridLine = -1;
+            const gridScanStartY = Math.floor(source.height * 0.03);
             for (let x = Math.floor(source.width * 0.04); x < Math.floor(source.width * 0.22); x += 1) {
                 let score = 0;
-                for (let y = 60; y < source.height; y += 3) {
+                for (let y = gridScanStartY; y < source.height; y += 3) {
                     const [r, g, b] = pixelAt(x, y);
                     if (Math.max(r, g, b) - Math.min(r, g, b) < 8 && r > 185 && r < 245) score += 1;
                 }
@@ -136,6 +137,11 @@
                 }
             }
             const columnWidth = (source.width - gridStart) / 5;
+            const minBlockHeight = Math.max(12, Math.floor(source.height * 0.017));
+            const columnScanStartY = Math.floor(source.height * 0.01);
+            const sampleInset = Math.max(3, Math.floor(columnWidth * 0.03));
+            const sampleWindowY = Math.max(sampleInset + 4, Math.floor(columnWidth * 0.1));
+            const sampleWindowX = Math.max(sampleInset + 5, Math.floor(columnWidth * 0.12));
 
             for (let day = 0; day < 5; day += 1) {
                 const centreX = gridStart + columnWidth * (day + 0.5);
@@ -143,31 +149,31 @@
                 const runs = [];
                 let runStart = null;
                 let previousColour = null;
-                for (let y = 20; y < source.height; y += 1) {
+                for (let y = columnScanStartY; y < source.height; y += 1) {
                     const [r, g, b] = pixelAt(scanX, y);
                     const active = Math.max(r, g, b) - Math.min(r, g, b) > 18 && Math.min(r, g, b) < 245;
                     const changedBlock = previousColour && Math.sqrt(
                         ((r - previousColour[0]) ** 2) + ((g - previousColour[1]) ** 2) + ((b - previousColour[2]) ** 2)
                     ) > 28;
                     if (active && runStart === null) runStart = y;
-                    else if (active && runStart !== null && changedBlock && y - runStart > 35) {
+                    else if (active && runStart !== null && changedBlock && y - runStart > minBlockHeight) {
                         runs.push([runStart, y - 1]);
                         runStart = y;
                     }
                     if (!active && runStart !== null) {
-                        if (y - runStart > 35) runs.push([runStart, y - 1]);
+                        if (y - runStart > minBlockHeight) runs.push([runStart, y - 1]);
                         runStart = null;
                     }
                     previousColour = active ? [r, g, b] : null;
                 }
-                if (runStart !== null && source.height - runStart > 35) runs.push([runStart, source.height - 1]);
+                if (runStart !== null && source.height - runStart > minBlockHeight) runs.push([runStart, source.height - 1]);
 
                 runs.forEach(([y0, y1]) => {
                     const x0 = Math.max(gridStart, centreX - columnWidth * 0.48);
                     const x1 = Math.min(source.width - 1, centreX + columnWidth * 0.48);
                     const samples = [];
-                    for (let y = y0 + 8; y < Math.min(y0 + 25, y1); y += 1) {
-                        for (let x = x0 + 8; x < Math.min(x0 + 30, x1); x += 1) samples.push(pixelAt(x, y));
+                    for (let y = y0 + sampleInset; y < Math.min(y0 + sampleWindowY, y1); y += 1) {
+                        for (let x = x0 + sampleInset; x < Math.min(x0 + sampleWindowX, x1); x += 1) samples.push(pixelAt(x, y));
                     }
                     samples.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
                     const background = samples[Math.floor(samples.length / 2)] || [255, 255, 255];
