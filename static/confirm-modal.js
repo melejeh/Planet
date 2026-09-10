@@ -79,3 +79,22 @@ function planetConfirmForm(form, message, options = {}) {
         }
     });
 }
+
+/**
+ * Auto-wires every <form data-confirm="..."> on the page to show the custom
+ * modal instead of a native confirm() before submitting. This means pages
+ * that render a delete form inside a loop (one per course, goal, entry,
+ * etc.) need zero extra per-item JavaScript -- just add the data-confirm
+ * attribute to the form tag in the template.
+ *
+ * Optional: data-confirm-label="Remove" to change the confirm button text
+ * (defaults to "Delete"), and data-confirm-title="..." for the modal title.
+ */
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("form[data-confirm]").forEach((form) => {
+        planetConfirmForm(form, form.dataset.confirm, {
+            confirmLabel: form.dataset.confirmLabel || "Delete",
+            title: form.dataset.confirmTitle || "Are you sure?"
+        });
+    });
+});
