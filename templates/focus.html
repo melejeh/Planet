@@ -21,6 +21,7 @@
     <div class="dashboard-layout">
         {% set active_page = "focus" %}
         {% include "sidebar.html" %}
+        {% include "confirm_modal.html" %}
 
         <main class="dashboard-main">
             <header class="dashboard-topbar">
@@ -335,11 +336,7 @@
                 'focus.delete_focus_session',
                 focus_session_id=study_session['id']
             ) }}"
-            onsubmit="
-                return confirm(
-                    'Are you sure you want to delete this study session?'
-                );
-            "
+            data-confirm="Are you sure you want to delete this study session?"
         >
             <button type="submit">
                 Delete
@@ -513,6 +510,7 @@
         </section>
     </div>
 
+    <script src="{{ url_for('static', filename='confirm-modal.js') }}"></script>
     <script>
     /*
         Manual study-session modal
