@@ -7037,3 +7037,6 @@ body.dashboard-body {
 .planet-confirm-box .dark-button.is-danger:hover {
     background: #a93226;
 }
+.planet-confirm-overlay[hidden] {
+    display: none;
+}
