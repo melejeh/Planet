@@ -3384,13 +3384,13 @@ form button:hover {
     font-weight: 500;
 }
 
-@media (max-width: 950px) {
+@media (max-width: 1190px) {
     .final-grade-form {
         grid-template-columns: 1fr 1fr;
     }
 }
 
-@media (max-width: 650px) {
+@media (max-width: 900px) {
     .final-grade-form {
         grid-template-columns: 1fr;
     }
@@ -6989,54 +6989,4 @@ body.dashboard-body {
 
 .delete-account-button:hover {
     background-color: #a93226;
-}
-.planet-confirm-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    background: rgba(36, 36, 31, 0.45);
-}
-
-.planet-confirm-box {
-    width: 100%;
-    max-width: 420px;
-    padding: 28px;
-    border-radius: 18px;
-    background: white;
-    box-shadow: 0 20px 60px rgba(36, 36, 31, 0.25);
-}
-
-.planet-confirm-title {
-    margin: 0 0 10px;
-    font-family: Georgia, serif;
-    font-size: 22px;
-    color: var(--ink);
-}
-
-.planet-confirm-message {
-    margin: 0;
-    color: var(--muted);
-    line-height: 1.55;
-}
-
-.planet-confirm-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 24px;
-}
-
-.planet-confirm-box .dark-button.is-danger {
-    background: #c0392b;
-}
-
-.planet-confirm-box .dark-button.is-danger:hover {
-    background: #a93226;
-}
-.planet-confirm-overlay[hidden] {
-    display: none;
 }

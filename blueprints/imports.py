@@ -250,7 +250,13 @@ def import_course_outline(course_id):
             else:
                 assessments = _course_outline_assessments(extracted_text)
                 if not assessments:
-                    error = "Planet could not find assessment names and percentages. You can add review rows manually."
+                    preview = extracted_text[:1500].replace("\n", " | ")
+                    error = (
+                        "DEBUG — extracted text (" + str(len(extracted_text)) + " chars): "
+                        + preview
+                        + " || Planet could not find assessment names and percentages. "
+                        "You can add review rows manually."
+                    )
         elif not outline or not outline.filename:
             error = "Choose a PDF or screenshot of the evaluation section first."
         elif not outline.filename.lower().endswith(".pdf"):
