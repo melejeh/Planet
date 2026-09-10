@@ -168,20 +168,43 @@ def _course_outline_assessments(text):
         r"\1",
         evaluation_text
     )
+
+    lines = [" ".join(l.split()) for l in evaluation_text.splitlines() if l.strip()]
+
+    # Multi-column tables (Course Component | % Worth | CEAB GAs | Assessed)
+    # often get scrambled by OCR so a weight ends up separated from its own
+    # name by unrelated columns -- but the overall ORDER of names and the
+    # order of weights is usually still preserved. When the count of
+    # assessment-looking names exactly matches the count of standalone
+    # weights, pair them up positionally rather than requiring strict
+    # adjacency, which recovers rows the sequential matching below would
+    # otherwise silently drop.
+    name_lines = [l for l in lines if likely_assessment(l) and "%" not in l]
+    weight_line_pattern = re.compile(
+        r"^(\d+(?:\.\d+)?)\s*%\s*(?:/\s*(\d+(?:\.\d+)?)\s*%)?$"
+    )
+    weight_line_matches = [
+        m for m in (weight_line_pattern.match(l) for l in lines) if m
+    ]
+
+    if name_lines and len(name_lines) == len(weight_line_matches):
+        for name, weight_match in zip(name_lines, weight_line_matches):
+            rows.append({
+                "name": re.sub(r"\s+\)", ")", name.strip(" :-")),
+                "weight": weight_match.group(1),
+                "alternative_weight": weight_match.group(2) or "",
+                "due_date": ""
+            })
+        return rows
+
     pending_name = None
-    for raw_line in evaluation_text.splitlines():
-        line = " ".join(raw_line.split())
-        if not line:
-            continue
+    for line in lines:
         match = re.match(
             r"(.+?)\s+(\d+(?:\.\d+)?)\s*%\s*(?:/\s*(\d+(?:\.\d+)?)\s*%)?",
             line
         )
         if not match:
-            standalone_weight = re.match(
-                r"^(\d+(?:\.\d+)?)\s*%\s*(?:/\s*(\d+(?:\.\d+)?)\s*%)?$",
-                line
-            )
+            standalone_weight = weight_line_pattern.match(line)
             if standalone_weight and pending_name and likely_assessment(pending_name):
                 rows.append({
                     "name": pending_name,
