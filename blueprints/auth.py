@@ -80,7 +80,8 @@ def _send_password_reset_email(recipient, reset_url):
         data=payload,
         headers={
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "Planet-App/1.0 (+https://myplanetplanner.app)"
         },
         method="POST"
     )
