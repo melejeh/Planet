@@ -65,8 +65,7 @@ html[data-theme]:not([data-theme="editorial"]) .dashboard-body { background-colo
 .settings-toggle-row input:checked + i { background: var(--berry); }
 .settings-toggle-row input:checked + i::after { transform: translateX(21px); }
 .settings-field-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 24px; }
-.settings-field-grid label { display: grid; grid-template-rows: auto auto 1fr; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 700; }
-.settings-field-grid label input { grid-row: 3; align-self: end; }
+.settings-field-grid label { display: grid; gap: 8px; color: var(--ink); font-size: 13px; font-weight: 700; }
 .settings-field-grid label span { color: var(--muted); font-weight: 500; }
 .settings-field-grid input { width: 100%; height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 11px; background: white; color: var(--ink); font: inherit; }
 .settings-days { margin: 24px 0 0; padding: 0; border: 0; }
@@ -136,12 +135,12 @@ html[data-compact="true"] .study-plan-card,
 html[data-compact="true"] .gratitude-compose-card,
 html[data-compact="true"] .gratitude-notebook { padding: 22px; }
 
-@media (max-width: 900px) {
+@media (max-width: 1150px) {
     .settings-field-grid, .theme-options, .security-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .quick-link-form { grid-template-columns: 1fr 1fr; }
     .dashboard-quick-links { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
-@media (max-width: 650px) {
+@media (max-width: 900px) {
     .settings-content { width: auto; padding: 44px 20px 90px; }
     .settings-card { padding: 22px; }
     .settings-card-heading { flex-direction: column; }
@@ -1630,7 +1629,7 @@ form button:hover {
 
 .semester-form-fields {
     display: grid;
-    grid-template-columns: 1.4fr 1fr 1fr auto;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
     align-items: end;
     gap: 12px;
 }
@@ -1702,7 +1701,7 @@ form button:hover {
     gap: 10px;
 }
 
-@media (max-width: 850px) {
+@media (max-width: 1090px) {
 
     .semester-page-heading,
     .semester-tabs-section {
@@ -1711,11 +1710,15 @@ form button:hover {
     }
 
     .semester-form-fields {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .semester-form-fields button {
+        grid-column: 1 / -1;
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 840px) {
 
     .semester-heading-actions,
     .empty-state-actions,
@@ -1725,7 +1728,7 @@ form button:hover {
     }
 
     .semester-form-fields {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -6983,7 +6986,4 @@ body.dashboard-body {
 
 .delete-account-button:hover {
     background-color: #a93226;
-}
-@media (max-width: 1100px) {
-    .semester-form-fields { grid-template-columns: 1fr 1fr; }
 }
