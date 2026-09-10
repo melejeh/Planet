@@ -88,7 +88,15 @@ def _send_password_reset_email(recipient, reset_url):
     try:
         with urlopen(email_request, timeout=10) as response:
             return 200 <= response.status < 300
-    except (HTTPError, URLError, TimeoutError) as error:
+    except HTTPError as error:
+        error_body = error.read().decode("utf-8", errors="replace")
+        current_app.logger.error(
+            "Password reset email failed: HTTP %s - %s",
+            error.code,
+            error_body
+        )
+        return False
+    except (URLError, TimeoutError) as error:
         current_app.logger.error("Password reset email failed: %s", error)
         return False
 
