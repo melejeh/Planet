@@ -21,6 +21,7 @@
 
         {% set active_page = "semester" %}
         {% include "sidebar.html" %}
+        {% include "confirm_modal.html" %}
 
         <main class="dashboard-main">
 
@@ -310,9 +311,7 @@
                                                 'courses.delete_assessment',
                                                 assessment_id=assessment['id']
                                             ) }}"
-                                            onsubmit="return confirm(
-                                                'Are you sure you want to delete this assessment?'
-                                            );"
+                                            data-confirm="Are you sure you want to delete this assessment?"
                                         >
                                             <button
                                                 type="submit"
@@ -511,6 +510,7 @@
             </section>
         </main>
     </div>
+    <script src="{{ url_for('static', filename='confirm-modal.js') }}"></script>
     <script>
         document.getElementById("course-search").addEventListener("input", (event) => {
             const query = event.target.value.trim().toLowerCase();

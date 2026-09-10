@@ -11,6 +11,7 @@
     <div class="dashboard-layout">
         {% set active_page = "goals" %}
         {% include "sidebar.html" %}
+        {% include "confirm_modal.html" %}
 
         <main class="dashboard-main">
             <header class="dashboard-topbar">
@@ -173,6 +174,7 @@
         </section>
     </div>
 
+    <script src="{{ url_for('static', filename='confirm-modal.js') }}"></script>
     <script>
         const goalModal = document.getElementById("goal-form-modal");
 
@@ -227,7 +229,7 @@
 
                 form.addEventListener("submit", async function (event) {
                     event.preventDefault();
-                    if (form.classList.contains("goal-delete-form") && !window.confirm("Delete this goal?")) return;
+                    if (form.classList.contains("goal-delete-form") && !(await planetConfirm("Delete this goal?"))) return;
 
                     const response = await fetch(form.action, {
                         method: "POST",

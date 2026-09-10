@@ -10,6 +10,7 @@
     <div class="dashboard-layout">
         {% set active_page = "gratitude" %}
         {% include "sidebar.html" %}
+        {% include "confirm_modal.html" %}
 
         <main class="dashboard-main">
             <header class="dashboard-topbar">
@@ -94,7 +95,7 @@
                                                 data-title="{{ entry['title']|e }}"
                                                 data-note="{{ entry['note']|e }}"
                                             >Edit</button>
-                                            <form method="POST" action="{{ url_for('gratitude.delete_gratitude', entry_id=entry['id']) }}" onsubmit="return confirm('Delete this gratitude entry?');">
+                                            <form method="POST" action="{{ url_for('gratitude.delete_gratitude', entry_id=entry['id']) }}" data-confirm="Delete this gratitude entry?">
                                                 <button type="submit" class="text-button danger-text-button">Delete</button>
                                             </form>
                                         </div>
@@ -133,6 +134,7 @@
         </section>
     </div>
 
+    <script src="{{ url_for('static', filename='confirm-modal.js') }}"></script>
     <script>
         const editOverlay = document.getElementById("gratitude-edit-overlay");
         const editForm = document.getElementById("gratitude-edit-form");

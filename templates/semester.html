@@ -21,6 +21,7 @@
 
         {% set active_page = "semester" %}
         {% include "sidebar.html" %}
+        {% include "confirm_modal.html" %}
         {#
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -178,7 +179,7 @@
                                         'courses.delete_semester',
                                         semester_id=semester['id']
                                     ) }}"
-                                    onsubmit="return confirm('Are you sure you want to delete this semester?');"
+                                    data-confirm="Are you sure you want to delete this semester?"
                                 >
                                     <button
                                         class="semester-delete-icon"
@@ -369,7 +370,7 @@
                             'courses.delete_course',
                             course_id=course['id']
                         ) }}"
-                        onsubmit="return confirm('Are you sure you want to delete this course?');"
+                        data-confirm="Are you sure you want to delete this course?"
                     >
                         <button
                             type="submit"
@@ -490,6 +491,7 @@
         </main>
     </div>
 
+    <script src="{{ url_for('static', filename='confirm-modal.js') }}"></script>
     <script>
         function toggleSemesterForm() {
             const panel = document.getElementById(

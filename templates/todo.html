@@ -20,6 +20,7 @@
     <div class="dashboard-layout">
         {% set active_page = "todo" %}
         {% include "sidebar.html" %}
+        {% include "confirm_modal.html" %}
 
         <main class="dashboard-main">
             <header class="dashboard-topbar">
@@ -339,11 +340,7 @@
                                                     'tasks.delete_task',
                                                     task_id=task['id']
                                                 ) }}"
-                                                onsubmit="
-                                                    return confirm(
-                                                        'Are you sure you want to delete this task?'
-                                                    );
-                                                "
+                                                data-confirm="Are you sure you want to delete this task?"
                                             >
                                                 <button
                                                     type="submit"
@@ -381,6 +378,7 @@
         </main>
     </div>
 
+    <script src="{{ url_for('static', filename='confirm-modal.js') }}"></script>
     <script>
         function toggleTaskForm() {
             const panel = document.getElementById(

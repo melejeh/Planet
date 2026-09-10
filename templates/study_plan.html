@@ -48,6 +48,7 @@
 
         {% set active_page = "study_plan" %}
         {% include "sidebar.html" %}
+        {% include "confirm_modal.html" %}
 
         <main class="dashboard-main">
 
@@ -805,6 +806,7 @@
             </form>
         </section>
     </div>
+    <script src="{{ url_for('static', filename='confirm-modal.js') }}"></script>
     <script>
         const sessionOverlay = document.getElementById("session-overlay");
         const sessionForm = document.getElementById("session-form");
@@ -812,21 +814,28 @@
         const sessionSubmit = document.getElementById("session-submit");
         const addSessionAction = "{{ url_for('study_plan.add_study_block') }}";
 
-        document.getElementById("plan-selection-form").addEventListener("submit", (event) => {
-            const replaceGenerated = event.currentTarget.querySelector(
+        document.getElementById("plan-selection-form").addEventListener("submit", async (event) => {
+            const form = event.currentTarget;
+            const replaceGenerated = form.querySelector(
                 'input[name="replace_generated"]'
             ).value === "1";
 
-            if (
-                replaceGenerated
-                && !window.confirm(
+            if (replaceGenerated && form.dataset.planetConfirmed !== "true") {
+                event.preventDefault();
+                const sure = await planetConfirm(
                     "Replace your automatically generated sessions for this week? "
                     + "Manual and completed sessions will be kept."
-                )
-            ) {
-                event.preventDefault();
+                );
+                if (!sure) return;
+                form.dataset.planetConfirmed = "true";
+                if (form.requestSubmit) {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
                 return;
             }
+            form.dataset.planetConfirmed = "false";
 
             document.querySelectorAll(
                 '#generate-plan-button, #empty-generate-button'
@@ -980,7 +989,7 @@
             form.addEventListener("submit", async (event) => {
                 event.preventDefault();
 
-                if (!window.confirm("Delete this study session?")) return;
+                if (!(await planetConfirm("Delete this study session?"))) return;
 
                 const button = form.querySelector('button[type="submit"]');
                 const row = form.closest(".study-block-row");
@@ -1097,7 +1106,7 @@
             if (!sessionIds.length) return;
 
             const noun = sessionIds.length === 1 ? "session" : "sessions";
-            if (!window.confirm(`Delete ${sessionIds.length} selected study ${noun}?`)) return;
+            if (!(await planetConfirm(`Delete ${sessionIds.length} selected study ${noun}?`))) return;
 
             deleteSelectedButton.disabled = true;
 
