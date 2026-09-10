@@ -38,7 +38,6 @@
                         <span></span><p id="timetable-progress-text">Reading your timetable…</p>
                     </div>
                     <p class="settings-message error" id="timetable-error" hidden></p>
-                    <div id="timetable-debug-image" style="margin-top: 12px;"></div>
                 </section>
 
                 <section class="settings-card timetable-review-card" id="review-card" hidden>
@@ -237,7 +236,6 @@
             errorBox.hidden = true;
             reviewCard.hidden = true;
             reviewList.innerHTML = "";
-            document.getElementById("timetable-debug-image").innerHTML = "";
             if (!file) return;
             if (file.size > 10 * 1024 * 1024) {
                 errorBox.textContent = "Choose an image smaller than 10 MB.";
@@ -265,39 +263,12 @@
                 });
                 await worker.setParameters({tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT});
                 const processedTimetable = preprocessTimetable(image);
-
-                // TEMPORARY DEBUG: show exactly what the preprocessing step
-                // produces, so we can see it directly instead of guessing.
-                const debugContainer = document.getElementById("timetable-debug-image");
-                debugContainer.innerHTML = "";
-                const debugLabel = document.createElement("p");
-                debugLabel.textContent = "Debug: processed image sent to OCR (scroll to inspect)";
-                debugLabel.style.fontSize = "12px";
-                debugLabel.style.fontWeight = "700";
-                debugContainer.appendChild(debugLabel);
-                const debugImg = document.createElement("img");
-                debugImg.src = processedTimetable.canvas.toDataURL("image/png");
-                debugImg.style.width = "100%";
-                debugImg.style.border = "2px solid red";
-                debugContainer.appendChild(debugImg);
-
                 const result = await worker.recognize(processedTimetable.canvas);
                 await worker.terminate();
                 URL.revokeObjectURL(imageUrl);
                 const courses = parseTimetable(result.data.lines || [], image.naturalWidth, processedTimetable.gridStart);
                 if (!courses.length) {
-                    const rawLineCount = (result.data.lines || []).length;
-                    const sampleLines = (result.data.lines || [])
-                        .slice(0, 8)
-                        .map(l => JSON.stringify(l.text))
-                        .join(", ");
-                    throw new Error(
-                        "DEBUG v4 — image " + image.naturalWidth + "x" + image.naturalHeight +
-                        " | gridStart " + Math.round(processedTimetable.gridStart) +
-                        " | OCR lines found: " + rawLineCount +
-                        " | sample text: " + sampleLines +
-                        " || Planet could not confidently find course codes. Try a clearer screenshot or add the courses in the review manually."
-                    );
+                    throw new Error("Planet could not confidently find course codes. Try a clearer screenshot or add the courses in the review manually.");
                 }
                 courses.forEach(addCourseRow);
                 reviewCard.hidden = false;
