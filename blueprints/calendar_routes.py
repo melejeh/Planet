@@ -315,6 +315,12 @@ def edit_event(event_id):
     end_time = request.form.get("end_time", "")
     category = request.form.get("category", "personal")
     notes = request.form.get("notes", "").strip()
+    repeat_type = request.form.get("repeat_type", "none")
+    repeat_until = request.form.get("repeat_until", "")
+    repeat_days = {
+        int(day)
+        for day in request.form.getlist("repeat_days")
+    }
 
     if not title or not event_date or not start_time or end_time <= start_time:
         return redirect(url_for("calendar_bp.calendar", week=event_date or None))
@@ -338,6 +344,57 @@ def edit_event(event_id):
             session["user_id"]
         )
     )
+
+    # A repeat option picked while editing doesn't rewrite history -- it
+    # starts a new run of occurrences going forward from this event's own
+    # date, the same way picking "repeat" does when creating a new event.
+    if repeat_type != "none" and repeat_until:
+        first_date = datetime.strptime(event_date, "%Y-%m-%d").date()
+        try:
+            final_date = datetime.strptime(repeat_until, "%Y-%m-%d").date()
+        except ValueError:
+            final_date = None
+
+        if final_date and final_date >= first_date:
+            # Keep one repeating series within one year.
+            final_date = min(final_date, first_date + timedelta(days=365))
+
+            repeated_dates = []
+            current_date = first_date + timedelta(days=1)
+
+            while current_date <= final_date:
+                should_add = False
+
+                if repeat_type == "daily":
+                    should_add = True
+                elif repeat_type == "weekly":
+                    should_add = current_date.weekday() == first_date.weekday()
+                elif repeat_type == "custom":
+                    should_add = current_date.weekday() in repeat_days
+
+                if should_add:
+                    repeated_dates.append(current_date)
+
+                current_date += timedelta(days=1)
+
+            if repeated_dates:
+                connection.executemany(
+                    """
+                    INSERT INTO events (
+                        user_id, title, event_date, start_time,
+                        end_time, category, notes
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        (
+                            session["user_id"], title, repeated_date.isoformat(),
+                            start_time, end_time, category, notes
+                        )
+                        for repeated_date in repeated_dates
+                    ]
+                )
+
     connection.commit()
 
     return redirect(url_for("calendar_bp.calendar", week=event_date))
