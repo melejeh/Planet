@@ -511,12 +511,14 @@ def course_details(course_id):
 
 
     graded_weight = 0
+    total_weight = 0
     earned_points = 0
     next_due = None
     ungraded_assessments = []
 
     for assessment in assessments:
         weight = float(assessment["weight"])
+        total_weight += weight
 
         if assessment["score"] is not None:
             score = float(assessment["score"])
@@ -539,8 +541,10 @@ def course_details(course_id):
                 next_due = assessment["due_date"]
 
     completed_weight = round(graded_weight, 1)
+    # Based on the actual weights entered for this course, not an assumption
+    # that every course's assessments always add up to exactly 100%.
     remaining_weight = round(
-        max(0, 100 - completed_weight),
+        max(0, total_weight - completed_weight),
         1
     )
 
