@@ -2,7 +2,7 @@
 
 **A responsive student planning platform that turns course information into an actionable semester plan.**
 
-[Live beta](https://melejeh.pythonanywhere.com) · [Report an issue](https://github.com/melejeh/Planet/issues)
+[Live beta]([https://myplanetplanner.app)) · [Report an issue](https://github.com/melejeh/Planet/issues)
 
 Planet brings courses, assessments, grades, study sessions, tasks, goals, calendar events, and focus tools into one workspace. It also reduces manual setup through OCR-assisted timetable and course-outline imports, with an editable review step before any detected information is saved.
 
@@ -18,6 +18,7 @@ Planet brings courses, assessments, grades, study sessions, tasks, goals, calend
 - **Weekly calendar** — Create, edit, move, repeat, search, and delete events.
 - **Productivity workspace** — Manage tasks, goals, focus sessions, gratitude entries, and study history.
 - **Responsive interface** — Use Planet across desktop, tablet, and mobile layouts.
+- **Secure accounts** — Sign up, log in, and reset a forgotten password through an emailed link that expires after 30 minutes.
 - **Multi-user data isolation** — Every query is scoped to the authenticated user so accounts cannot access one another's information.
 
 ## Product Tour
@@ -80,6 +81,8 @@ Urgent, high-weight assessments receive more sessions, while a diminishing prior
 | `pypdf` for text-based outlines | Uses embedded PDF text when available instead of performing unnecessary image OCR. |
 | Editable import review screens | Protects data quality when OCR or document parsing is uncertain. |
 | Session-based authentication and hashed passwords | Provides authenticated user workflows without storing plaintext passwords. |
+| Signed, time-limited password-reset links | Reset links expire after 30 minutes and stop working once the password changes, so old emails can't be reused. |
+| Flask blueprints | Each feature (auth, courses, calendar, study plan, and so on) lives in its own module, which keeps the codebase easier to navigate and change. |
 | User-scoped database queries | Enforces ownership boundaries between accounts. |
 | Responsive CSS rather than a separate mobile app | Keeps the same product usable across desktop, tablet, and phone screens. |
 
@@ -93,8 +96,29 @@ Urgent, high-weight assessments receive more sessions, while a diminishing prior
 - `pypdf`
 - HTML and CSS
 - Werkzeug password hashing
+- Resend (password-reset emails)
 - Gunicorn
 - PythonAnywhere
+
+## Project Structure
+
+```
+Planet/
+├── app.py              # Creates the Flask app and registers each blueprint
+├── db.py               # Database connection helpers
+├── init_db.py          # Creates the SQLite database from schema.sql
+├── schema.sql          # Table definitions
+├── utils.py            # Shared helpers (time zones, date formatting)
+├── blueprints/         # One module per feature
+│   ├── auth.py         # Sign up, log in, log out, password reset
+│   ├── courses.py      # Semesters, courses, assessments, grades
+│   ├── imports.py      # Timetable and course-outline imports
+│   ├── study_plan.py   # Priority-aware study-plan generation
+│   ├── calendar_routes.py, dashboard.py, tasks.py, goals.py,
+│   └── focus.py, gratitude.py, settings.py, core.py
+├── templates/          # Jinja HTML pages
+└── static/             # CSS and JavaScript
+```
 
 ## Run Locally
 
@@ -138,6 +162,15 @@ Windows PowerShell:
 $env:SECRET_KEY="replace-with-a-random-development-secret"
 ```
 
+Password-reset emails are optional for local development. To enable them, also set:
+
+```bash
+export RESEND_API_KEY="your-resend-api-key"
+export RESET_BASE_URL="http://127.0.0.1:5001"
+```
+
+Without `RESEND_API_KEY`, the rest of Planet works normally and reset emails are skipped.
+
 ### 5. Initialize and run Planet
 
 ```bash
@@ -153,15 +186,13 @@ Open `http://127.0.0.1:5001` in your browser.
 - Timetable importing currently works best with a clear Monday–Friday weekly view.
 - Scanned PDFs may work better when the relevant grading section is uploaded as an image.
 - Alternative grading schemes and weights described as “each” can require manual correction.
-- Email-based forgotten-password recovery is not implemented yet.
 - SQLite and the current PythonAnywhere deployment are suitable for beta usage, not high-traffic production workloads.
 
 ## Roadmap
 
 - Collect and respond to private-beta feedback
-- Add email-based password recovery
 - Add automated tests for authentication, ownership, grade calculations, imports, and study-plan prioritization
-- Refactor the Flask application into blueprints and service modules
+- Move more logic out of route handlers into service modules
 - Improve support for additional timetable and course-outline layouts
 - Prepare a production database migration path
 
