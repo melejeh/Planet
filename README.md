@@ -2,7 +2,7 @@
 
 **A responsive student planning platform that turns course information into an actionable semester plan.**
 
-[Live beta]([https://myplanetplanner.app)) · [Report an issue](https://github.com/melejeh/Planet/issues)
+[Live beta](https://melejeh.pythonanywhere.com)) · [Report an issue](https://github.com/melejeh/Planet/issues)
 
 Planet brings courses, assessments, grades, study sessions, tasks, goals, calendar events, and focus tools into one workspace. It also reduces manual setup through OCR-assisted timetable and course-outline imports, with an editable review step before any detected information is saved.
 
